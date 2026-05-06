@@ -10,17 +10,11 @@ class Config:
     JSON_SORT_KEYS = False
     FLASK_HOST = os.getenv("FLASK_RUN_HOST", "localhost")
     FLASK_PORT = os.getenv("FLASK_RUN_PORT", "5000")
-    DEBUG = os.getenv("FLASK_DEBUG", "False").lower() in ["1", "true"]
-    
-    SECRET_KEY = os.getenv("SECRET_KEY")
-    if not SECRET_KEY:
-        if not DEBUG:
-            raise ValueError("SECRET_KEY environment variable is required in production!")
-        SECRET_KEY = "change-me-in-production"
-
+    SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
     SESSION_TYPE = os.getenv("SESSION_TYPE", "filesystem")
     SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=7)
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
+    DEBUG = os.getenv("FLASK_DEBUG", False)
 
     # MongoDB
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -33,11 +27,10 @@ class Config:
     MAL_CLIENT_ID = os.getenv("MAL_CLIENT_ID", "")
     MAL_CLIENT_SECRET = os.getenv("MAL_CLIENT_SECRET", "")
 
-    # AniList OAuth (authorization code flow)
+    # AniList OAuth (implicit grant — client ID only, no secret)
     ANILIST_CLIENT_ID = os.getenv("ANILIST_CLIENT_ID", "")
-    ANILIST_CLIENT_SECRET = os.getenv("ANILIST_CLIENT_SECRET", "")
 
-    if DEBUG:
+    if DEBUG in ["1", True, "True"]:
         PROTOCOL = "http"
         REDIRECT_URL = f"{FLASK_HOST}:{FLASK_PORT}"
     else:
