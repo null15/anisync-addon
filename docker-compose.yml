@@ -1,0 +1,42 @@
+services:
+  app:
+    mem_limit: 256m
+    memswap_limit: 512m
+    build: .
+    container_name: anisync
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - web-network
+      - internal
+    restart: unless-stopped
+
+  mongo:
+    mem_limit: 1g
+    memswap_limit: 2g
+    image: mongo:7
+    container_name: anisync-mongo
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+
+networks:
+  web-network:
+    external: true
+  internal:
+    driver: bridge
