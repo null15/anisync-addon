@@ -195,7 +195,7 @@ async def handle_catalog(user_id: str, catalog_type: str, catalog_id: str, extra
     metas = []
 
     # --- Search Catalog ---
-    if catalog_id == "anime_tracker_search":
+    if catalog_id == "anisync_search":
         if not search_query:
             return await respond_with({"metas": []})
 
@@ -298,8 +298,8 @@ async def handle_catalog(user_id: str, catalog_type: str, catalog_id: str, extra
                 is_airing = (status == "currently_airing" or status == "not_yet_aired")
 
                 is_new_ep = False
-                if is_airing and user.get("sort_by_new_episodes"):
-                    is_new_ep = has_unwatched
+                if is_airing and user.get("sort_by_new_episodes") and latest_aired_num > 0:
+                    is_new_ep = progress < latest_aired_num
 
                 return is_new_ep, has_unwatched, latest_aired_at, latest_aired_num
 
@@ -442,8 +442,8 @@ async def handle_catalog(user_id: str, catalog_type: str, catalog_id: str, extra
                 is_airing = (status in ["RELEASING", "NOT_YET_RELEASED"])
 
                 is_new_ep = False
-                if is_airing and user.get("sort_by_new_episodes"):
-                    is_new_ep = has_unwatched
+                if is_airing and user.get("sort_by_new_episodes") and latest_aired_num > 0:
+                    is_new_ep = progress < latest_aired_num
 
                 return is_new_ep, has_unwatched, latest_aired_at
 

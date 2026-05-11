@@ -76,7 +76,7 @@ CATALOGS = [
     },
     {
         "type": "anime",
-        "id": "anime_tracker_search",
+        "id": "anisync_search",
         "name": "Search",
         "extra": [{"name": "search", "isRequired": True}, {"name": "skip"}],
     },
@@ -284,7 +284,7 @@ async def user_manifest(user_id: str):
             for cat in CATALOGS:
                 if cat["id"] == cat_id:
                     # Apply visibility checks
-                    if cat_id == "anime_tracker_search":
+                    if cat_id == "anisync_search":
                         if not enable_search:
                             continue
                     else:
@@ -301,7 +301,7 @@ async def user_manifest(user_id: str):
         for cat in CATALOGS:
             if cat not in active_catalogs:
                 cat_id = cat["id"]
-                if cat_id == "anime_tracker_search":
+                if cat_id == "anisync_search":
                     if not enable_search:
                         continue
                 else:
@@ -319,7 +319,7 @@ async def user_manifest(user_id: str):
         # Fallback to default catalog order if user has not customized them
         for cat in CATALOGS:
             cat_id = cat["id"]
-            if cat_id == "anime_tracker_search":
+            if cat_id == "anisync_search":
                 if not enable_search:
                     continue
             else:
