@@ -118,6 +118,7 @@ async def fetch_anilist_details_in_bulk(mal_ids: list[str]) -> dict:
 
 
 currently_fetching_pairs = set()
+currently_fetching_pages = set()
 jikan_semaphore = None
 
 def get_jikan_semaphore():
@@ -127,47 +128,64 @@ def get_jikan_semaphore():
     return jikan_semaphore
 
 async def background_fetch_and_cache_filler(mal_id: str, episode: int):
-    pair = (str(mal_id), episode)
-    async with get_jikan_semaphore():
-        await asyncio.sleep(1.0)  # Rate limiting safety sleep
-        
-        # Check cache again inside the lock
-        from app.services.db import get_jikan_filler_cache, set_jikan_filler_cache
-        cached = get_jikan_filler_cache(mal_id, episode)
-        if cached is not None:
-            currently_fetching_pairs.discard(pair)
-            return
+    page = (int(episode) - 1) // 100 + 1
+    page_pair = (str(mal_id), page)
+    
+    if page_pair in currently_fetching_pages:
+        currently_fetching_pairs.discard((str(mal_id), episode))
+        return
+    currently_fetching_pages.add(page_pair)
+    
+    try:
+        async with get_jikan_semaphore():
+            await asyncio.sleep(1.0)  # Rate limiting safety sleep
             
-        retries = 3
-        backoff = 2.0
-        for attempt in range(retries):
-            try:
-                import httpx
-                url = f"https://api.jikan.moe/v4/anime/{mal_id}/episodes/{episode}"
-                async with httpx.AsyncClient(timeout=10) as client:
-                    resp = await client.get(url)
-                    if resp.status_code == 200:
-                        data = resp.json().get("data", {})
-                        filler = bool(data.get("filler", False))
-                        set_jikan_filler_cache(mal_id, episode, filler)
-                        logging.info("Cached filler status for mal_id=%s ep=%s: %s", mal_id, episode, filler)
-                        break
-                    elif resp.status_code == 404:
-                        set_jikan_filler_cache(mal_id, episode, False)
-                        logging.info("Cached filler status for mal_id=%s ep=%s: False (404 Not Found)", mal_id, episode)
-                        break
-                    elif resp.status_code == 429:
-                        logging.warning("Jikan 429 rate limit hit for mal_id=%s ep=%s, retrying in %s seconds...", mal_id, episode, backoff)
-                        await asyncio.sleep(backoff)
-                        backoff *= 2.0
-                    else:
-                        logging.error("Jikan returned status %s for mal_id=%s ep=%s", resp.status_code, mal_id, episode)
-                        break
-            except Exception as e:
-                logging.error("Jikan background fetch exception (attempt %s) for mal_id=%s ep=%s: %s", attempt + 1, mal_id, episode, e)
-                await asyncio.sleep(1.0)
+            # Check cache again inside the lock
+            from app.services.db import get_jikan_filler_cache, set_jikan_filler_cache
+            cached = get_jikan_filler_cache(mal_id, episode)
+            if cached is not None:
+                return
                 
-        currently_fetching_pairs.discard(pair)
+            retries = 3
+            backoff = 2.0
+            success = False
+            for attempt in range(retries):
+                try:
+                    import httpx
+                    url = f"https://api.jikan.moe/v4/anime/{mal_id}/episodes?page={page}"
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        resp = await client.get(url)
+                        if resp.status_code == 200:
+                            data = resp.json().get("data", [])
+                            for item in data:
+                                ep_num = item.get("mal_id")
+                                if ep_num:
+                                    filler = bool(item.get("filler", False))
+                                    set_jikan_filler_cache(mal_id, ep_num, filler)
+                            logging.info("Cached Jikan filler page %s for mal_id=%s (found %s episodes)", page, mal_id, len(data))
+                            success = True
+                            break
+                        elif resp.status_code == 404:
+                            logging.warning("Jikan returned 404 for mal_id=%s episodes page %s", mal_id, page)
+                            break
+                        elif resp.status_code == 429:
+                            logging.warning("Jikan 429 rate limit hit on page %s for mal_id=%s, retrying in %s seconds...", page, mal_id, backoff)
+                            await asyncio.sleep(backoff)
+                            backoff *= 2.0
+                        else:
+                            logging.error("Jikan returned status %s on page %s for mal_id=%s", resp.status_code, page, mal_id)
+                            break
+                except Exception as e:
+                    logging.error("Jikan background page fetch exception (attempt %s) for mal_id=%s page=%s: %s", attempt + 1, mal_id, page, e)
+                    await asyncio.sleep(1.0)
+                    
+            # If we failed to fetch the page successfully, or if the episode is still not cached,
+            # cache it as False to prevent infinite retries.
+            if not success or get_jikan_filler_cache(mal_id, episode) is None:
+                set_jikan_filler_cache(mal_id, episode, False)
+    finally:
+        currently_fetching_pages.discard(page_pair)
+        currently_fetching_pairs.discard((str(mal_id), episode))
 
 
 async def fetch_jikan_filler_status(mal_id: str, episode: int) -> bool:
