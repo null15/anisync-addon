@@ -1,4 +1,4 @@
-# 🌟 AniSync - MyAnimeList & Anilist tracker
+# 🌟 AniSync - MyAnimeList & AniList Tracker for Stremio
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg?logo=python&logoColor=white)](https://python.org)
@@ -6,19 +6,42 @@
 [![Docker Support](https://img.shields.io/badge/docker-ready-2496ed.svg?logo=docker&logoColor=white)](https://www.docker.com)
 [![Stremio Addon](https://img.shields.io/badge/stremio-addon-8a2be2.svg)](https://stremio.com)
 
-**AniSync** is the ultimate, asynchronous Stremio companion that automatically synchronizes your anime streaming progress to **MyAnimeList** and **AniList** in real-time. It natively bridges your tracker watchlists as browsable, interactive catalogs directly inside the Stremio interface.
+**AniSync** is a lightweight companion addon for Stremio. It automatically synchronizes your anime progress to **MyAnimeList** and **AniList** in real-time as you stream, and exposes your watchlists directly inside Stremio as dynamic catalogs.
 
 ---
 
-## ✨ Features
+## ✨ Core Features
 
-- **Double-Platform Synchronization**: Connect *both* MyAnimeList and AniList simultaneously to update your progress on both systems.
-- **Dynamic Watchlist Catalogs**: Browse your "Currently Watching", "Plan to Watch", "Completed", and "On Hold" lists directly inside Stremio's sidebar catalog menu.
-- **Global Catalog Search**: Search MyAnimeList and AniList databases directly from Stremio's top search bar to play and track matches.
-- **Seamless Stream Playback (MAL/AL → Kitsu Bridge)**: Leverages a multi-tiered lookup engine that maps MAL and AniList IDs back to Kitsu IDs. This ensures all stream addons (such as Torrentio or Comet) can discover and serve video streams seamlessly.
-- **Background Tracking (Subtitles Interceptor)**: Listens to Stremio's subtitle resource pings upon episode playback, triggering instant updates in the background without affecting your video stream.
-- **Vibrant Glassmorphic Control Panel**: A state-of-the-art web configuration dashboard with interactive switches and live diagnostic status checks.
-- **Robust Cache Engine**: Integrates a MongoDB cache layer to store resolved ID mappings (Kitsu $\leftrightarrow$ MAL $\leftrightarrow$ AniList), reducing external API overhead and ensuring sub-millisecond page rendering.
+### 📺 Watchlist Airing Tags (`[New]`)
+AniSync checks your watchlists against AniList schedules and places a clear `[New]` tag in front of currently airing anime titles whenever a new episode has aired that you haven't watched yet.
+![Airing episode tag indicator](docs/images/watchlist_tags.png)
+
+### 🚫 Episode Filler Indicators (`[Filler]`)
+Using the Jikan (MAL) API, AniSync fetches episode lists and automatically prepends a `[Filler]` tag directly to the episode titles in Stremio's player detail overlay, letting you know exactly which episodes are safe to skip.
+![Inline episode filler tag details](docs/images/episode_filler_tags.png)
+
+* **Dual Account Syncing**: Connect both MyAnimeList and AniList simultaneously, keeping both watchlists updated in real-time as you play.
+* **Draggable Watchlist Catalogs**: Browse your "Currently Watching", "Plan to Watch", "Completed", and other watchlist statuses as rows inside Stremio. You can toggle their visibility and drag-and-drop to reorder them on your dashboard.
+* **Unified Kitsu Bridge**: Automatically maps MAL and AniList watchlists back to standard Kitsu IDs, ensuring stream providers (like Torrentio) find and serve playback links.
+* **Zero-Lag Background Tracking**: Syncs progress asynchronously by listening to Stremio subtitle requests, meaning your player buffering/playback is never affected.
+* **Fast Caching Engine**: Mappings and Jikan filler checks are cached in a local MongoDB instance using bulk page requests, reducing external API calls and keeping catalog loads under 100ms.
+* **Web Configuration Dashboard**: An elegant settings page to link your accounts, toggle features, reorder catalogs, and monitor server diagnostics in real-time.
+
+---
+
+## ⚠️ Troubleshooting: Metadata Override Conflict (AnimeKitsu Addon)
+
+If you have the **AnimeKitsu** addon installed, it might override AniSync's metadata during playback, which causes our `[Filler]` tags and custom titles to disappear in Stremio's player menu. 
+
+Stremio resolves metadata conflicts by prioritizing whichever addon is **higher in your Stremio installed addons list**. There are two ways to fix this:
+
+### Option A: Reorder your Addons (Highly Recommended)
+1. Log in to the community-made **[Stremio Addon Manager](https://addon-manager.ad.sc.strem.io/)** using your Stremio credentials.
+2. Drag **AniSync** above **AnimeKitsu** in the list to reorder them.
+3. Alternatively, simply uninstall both addons, then **install AniSync first** before reinstalling AnimeKitsu. Stremio will now prioritize our metadata and display the custom tags during playback.
+
+### Option B: Dedicated Sync-Only Mode
+If you prefer to let AnimeKitsu handle all of your catalogs and search, you can turn off `"Enable Watchlist Catalogs"` and `"Enable Catalog Search"` in your AniSync dashboard. This runs AniSync silently in the background solely to synchronize your watch progress, leaving Stremio's interface clean and conflict-free.
 
 ---
 
@@ -108,7 +131,7 @@ This starts:
 
 ## 🧪 Development & Quality Control
 
-This project uses `uv` for lightning-fast Python dependency management. To set up local quality checks:
+This project uses `uv` for dependency management. To set up local quality checks:
 
 ### Style Linting
 Verify code formatting and styling standards using `ruff`:
