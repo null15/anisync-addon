@@ -2,6 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install system dependencies (fonts-dejavu-core for scalable poster rendering)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv for fast dependency resolution
 RUN pip install uv --no-cache-dir
 
