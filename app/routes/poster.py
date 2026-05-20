@@ -61,26 +61,26 @@ async def serve_modified_poster(user_id: str, media_id: str):
             bg_crop = overlay_img.crop((0, 0, 200, 122))
             bg_resized = bg_crop.resize((overlay_w, overlay_h), resample_filter)
             
-            # 2. Crop the text 'New Episode' (from x=225 to x=794, width 569, height 122)
-            # to scale it proportionally and prevent any horizontal stretching or squishing
-            text_crop = overlay_img.crop((225, 0, 794, 122))
+            # 2. Crop the text 'New Episode' starting from y=15 to completely exclude the top white line
+            # Text region goes from x=225 to x=794 (width 569), and y=15 to y=122 (height 107)
+            text_crop = overlay_img.crop((225, 15, 794, 122))
             src_text_w = 569
-            src_text_h = 122
+            src_text_h = 107
             
-            # 3. Scale text proportionally to fit inside a bounding box (max_w=209, max_h=46)
+            # 3. Scale text proportionally to fit inside a bounding box (max_w=209, max_h=42)
             # This prevents the text from overflowing the poster horizontally while maintaining natural proportions
             max_text_w = overlay_w - 16 # 209px (8px padding left/right)
-            max_text_h = overlay_h - 6  # 46px (3px padding top/bottom)
+            max_text_h = overlay_h - 10 # 42px (5px padding top/bottom)
             
             scale_factor = min(max_text_w / src_text_w, max_text_h / src_text_h)
             text_w = int(src_text_w * scale_factor) # ~209px
-            text_h = int(src_text_h * scale_factor) # ~44px
+            text_h = int(src_text_h * scale_factor) # ~39px
             
             text_resized = text_crop.resize((text_w, text_h), resample_filter)
             
             # 4. Paste text centered horizontally and vertically on the starry background bar
             paste_x = (overlay_w - text_w) // 2 # (225 - 209) // 2 = 8px
-            paste_y = (overlay_h - text_h) // 2 # (52 - 44) // 2 = 4px
+            paste_y = (overlay_h - text_h) // 2 # (52 - 39) // 2 = 6px
             bg_resized.paste(text_resized, (paste_x, paste_y), text_resized if text_resized.mode == "RGBA" else None)
             
             # Paste the composite starry overlay onto the bottom of the 225x350 poster (starting at y=298)
