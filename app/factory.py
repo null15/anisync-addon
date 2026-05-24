@@ -6,11 +6,21 @@ from app.routes.ui import ui_bp
 from app.routes.catalog import catalog_bp
 from app.routes.meta import meta_bp
 from app.routes.poster import poster_bp
+from app.services.http import init_client, close_client
 
 
 def create_app() -> App:
     app_ = App(__name__, template_folder="../templates")
     app_.config.from_object("config.Config")
+
+    @app_.before_serving
+    async def startup():
+        init_client()
+
+    @app_.after_serving
+    async def shutdown():
+        await close_client()
+
     app_.register_blueprint(auth_bp)
     app_.register_blueprint(manifest_bp)
     app_.register_blueprint(subtitles_bp)

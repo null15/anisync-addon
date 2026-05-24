@@ -90,3 +90,15 @@ async def configure(user_id: str = ""):
     )
     resp.headers["Cache-Control"] = "private, max-age=60"
     return resp
+
+
+@ui_bp.route("/health")
+async def health():
+    import asyncio
+    from app.services.db import db
+    try:
+        # Verify MongoDB is reachable
+        await asyncio.to_thread(db.command, "ping")
+        return {"status": "healthy", "database": "connected"}, 200
+    except Exception as e:
+        return {"status": "unhealthy", "database": str(e)}, 500
