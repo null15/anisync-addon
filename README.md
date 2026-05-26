@@ -130,15 +130,80 @@ ANILIST_CLIENT_ID=your_anilist_client_id
 
 ### 2. Spinning Up Services with Docker
 
-AniSync is ready for production out of the box with Docker Compose. Run:
+You can spin up AniSync either by pulling our pre-built Docker image from the GitHub Container Registry (GHCR) or by building the source code locally.
+
+#### Option A: Pull Pre-built Image (Quickest & Recommended)
+
+No need to clone the full repository or build the image locally. Simply create a new folder, create a `.env` file (configured as shown above) along with the `docker-compose.yml` file content below, and run:
 
 ```bash
-docker-compose up -d --build
+docker compose up -d
 ```
 
-This starts:
-- **Quart Web Application** on port `5000` (bridged securely to your network manager).
-- **MongoDB 7** database daemon with automatic data volumes and health checks.
+##### Pre-built `docker-compose.yml`
+
+```yaml
+services:
+  app:
+    image: ghcr.io/atharvkharbade/anisync:latest
+    container_name: anisync
+    mem_limit: 256m
+    memswap_limit: 512m
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - web-network
+      - internal
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: anisync-mongo
+    mem_limit: 1g
+    memswap_limit: 2g
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+
+networks:
+  web-network:
+    external: true
+  internal:
+    driver: bridge
+```
+
+#### Option B: Build from Source (Developers)
+
+If you have cloned the repository and want to build the container from local source code:
+
+1. Build and start the services:
+   ```bash
+   docker compose up -d --build
+   ```
+2. This starts:
+   - **Quart Web Application** on port `5000` (bridged securely to your network manager).
+   - **MongoDB 7** database daemon with automatic data volumes and health checks.
 
 ---
 
