@@ -205,6 +205,30 @@ If you have cloned the repository and want to build the container from local sou
    - **Quart Web Application** on port `5000` (bridged securely to your network manager).
    - **MongoDB 7** database daemon with automatic data volumes and health checks.
 
+### 3. Hosting on Vercel (Serverless / One-Click)
+
+If you prefer serverless hosting over a private server or Docker container, you can deploy AniSync to **Vercel** with a single click.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fatharvkharbade%2Fanisync&env=SECRET_KEY,FLASK_RUN_HOST,MONGO_URI,MONGO_DB,MAL_CLIENT_ID,MAL_CLIENT_SECRET,ANILIST_CLIENT_ID&project-name=anisync&repository-name=anisync)
+
+#### Prerequisites for Vercel
+
+Because Vercel is a serverless platform, it cannot host database engines. You will need a cloud-hosted MongoDB database:
+1. Create a free database cluster on **[MongoDB Atlas](https://www.mongodb.com/products/platform/atlas-database)**.
+2. In the MongoDB Atlas dashboard, click **Connect** -> **Drivers** and copy your Python/standard connection string.
+3. Replace `<password>` in the connection string with your actual database user password. This is your `MONGO_URI` connection key.
+
+#### Environment Setup on Vercel
+
+When clicking the Deploy button, Vercel will ask you to supply the following environment variables:
+* `SECRET_KEY`: A long, secure random secret string.
+* `FLASK_RUN_HOST`: The actual domain Vercel assigns to your project (e.g., `my-anisync-addon.vercel.app` - do not include `https://`).
+* `MONGO_URI`: Your MongoDB Atlas connection string.
+* `MONGO_DB`: `anisync` (or your preferred database name).
+* `MAL_CLIENT_ID`: Your MyAnimeList API client ID.
+* `MAL_CLIENT_SECRET`: Your MyAnimeList API client secret.
+* `ANILIST_CLIENT_ID`: Your AniList API client ID.
+
 ---
 
 ## 🧭 Setup in Stremio
