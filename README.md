@@ -147,8 +147,8 @@ services:
   app:
     image: ghcr.io/atharvkharbade/anisync:latest
     container_name: anisync
-    mem_limit: 256m
-    memswap_limit: 512m
+    mem_limit: 1g
+    memswap_limit: 2g
     env_file:
       - .env
     environment:
