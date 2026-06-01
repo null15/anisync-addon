@@ -20,6 +20,9 @@ class Config:
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
     MONGO_DB = os.getenv("MONGO_DB", "anisync")
 
+    # Proxy Support
+    PROXY_URL = os.getenv("PROXY_URL", "")
+
     # MAL OAuth
     MAL_CLIENT_ID = os.getenv("MAL_CLIENT_ID", "")
     MAL_CLIENT_SECRET = os.getenv("MAL_CLIENT_SECRET", "")

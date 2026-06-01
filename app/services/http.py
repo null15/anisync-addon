@@ -1,6 +1,7 @@
 import logging
 import httpx
 from typing import Optional
+from config import Config
 
 _client: Optional[httpx.AsyncClient] = None
 
@@ -24,11 +25,16 @@ class PersistentAsyncClient(httpx.AsyncClient):
 def init_client():
     global _client
     if _client is None:
+        proxy = Config.PROXY_URL if Config.PROXY_URL else None
         _client = PersistentAsyncClient(
             timeout=8,
-            limits=httpx.Limits(max_connections=200, max_keepalive_connections=50)
+            limits=httpx.Limits(max_connections=200, max_keepalive_connections=50),
+            proxy=proxy
         )
-        logging.info("Initialized shared persistent connection pool with limits (max_connections=200).")
+        if proxy:
+            logging.info("Initialized shared persistent connection pool with proxy: %s", proxy)
+        else:
+            logging.info("Initialized shared persistent connection pool (Direct Connection).")
     # Globally patch httpx.AsyncClient
     httpx.AsyncClient = lambda *args, **kwargs: _client
 
