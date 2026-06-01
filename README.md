@@ -118,6 +118,11 @@ FLASK_RUN_HOST=yourdomain.com  # Public hostname (no protocol)
 MONGO_URI=mongodb://mongo:27017
 MONGO_DB=anisync
 
+# Proxy Support (Optional)
+# Route all external API calls through a proxy (HTTP, HTTPS, SOCKS5).
+# Perfect for bypassing rate limits at scale on a single server IP.
+PROXY_URL=http://username:password@proxyhost.com:8080
+
 # MyAnimeList OAuth Configuration
 # Set the Redirect URI in MAL panel to: https://yourdomain.com/callback
 MAL_CLIENT_ID=your_mal_client_id
@@ -209,7 +214,7 @@ If you have cloned the repository and want to build the container from local sou
 
 If you prefer serverless hosting over a private server or Docker container, you can deploy AniSync to **Vercel** with a single click.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fatharvkharbade%2Fanisync&env=SECRET_KEY,FLASK_RUN_HOST,MONGO_URI,MONGO_DB,MAL_CLIENT_ID,MAL_CLIENT_SECRET,ANILIST_CLIENT_ID&project-name=anisync&repository-name=anisync)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fatharvkharbade%2Fanisync&env=SECRET_KEY,FLASK_RUN_HOST,MONGO_URI,MONGO_DB,MAL_CLIENT_ID,MAL_CLIENT_SECRET,ANILIST_CLIENT_ID,PROXY_URL&project-name=anisync&repository-name=anisync)
 
 #### Prerequisites for Vercel
 
@@ -228,6 +233,7 @@ When clicking the Deploy button, Vercel will ask you to supply the following env
 * `MAL_CLIENT_ID`: Your MyAnimeList API client ID.
 * `MAL_CLIENT_SECRET`: Your MyAnimeList API client secret.
 * `ANILIST_CLIENT_ID`: Your AniList API client ID.
+* `PROXY_URL` (Optional): Your HTTP/HTTPS/SOCKS5 proxy URL (e.g. `http://username:password@proxyhost.com:8080` or container-specific proxies like `http://glider:8443` if using a local Gluetun VPN container on your VPS).
 
 ---
 
