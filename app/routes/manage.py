@@ -386,7 +386,7 @@ async def manage_page(user_id: str):
 
         .action-grid {{
             display: grid;
-            grid-template-columns: 125px 152px minmax(0, 1fr);
+            grid-template-columns: minmax(125px, 125px) 152px minmax(0, 1fr);
             gap: 14px;
             align-items: end;
         }}
@@ -459,7 +459,7 @@ async def manage_page(user_id: str):
         }}
 
         .score-panel {{
-            width: 100%;
+            width: fit-content;
             max-width: 100%;
             border: 1px solid var(--line);
             background: #1d1d1d;
@@ -677,14 +677,20 @@ async def manage_page(user_id: str):
             }}
 
             .providers,
-            .action-grid,
             .result-grid {{
                 grid-template-columns: 1fr;
             }}
 
-            .status-field,
-            .progress-field,
+            .action-grid {{
+                grid-template-columns: minmax(105px, 125px) minmax(140px, 1fr);
+            }}
+
             .score-field {{
+                grid-column: 1 / -1;
+            }}
+
+            .status-field,
+            .progress-field {{
                 width: 100%;
             }}
 
