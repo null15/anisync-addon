@@ -527,14 +527,6 @@ async def handle_meta(user_id: str, meta_type: str, meta_id: str):
                 fetch_cinemeta_metadata(imdb_id, media_type),
                 fetch_tvmaze_airdates(imdb_id),
             )
-            logging.warning(
-                "AIRDATE DEBUG meta_id=%s kitsu_id=%s mal_id=%s imdb_id=%s tvmaze_airdates=%s",
-                meta_id,
-                kitsu_id,
-                mal_id,
-                imdb_id,
-                tvmaze_airdates,
-            )
 
         # Resolve simkl_id if not present but we have kitsu_id
         if not simkl_id and kitsu_id:
