@@ -1,5 +1,6 @@
 import html
 import logging
+from turtle import width
 import urllib.parse
 
 from quart import Blueprint, request
@@ -267,7 +268,7 @@ async def manage_page(user_id: str):
         }}
 
         form {{
-            padding: 20px;
+            padding: 28px 20px 20px;
         }}
 
         .section {{
@@ -384,9 +385,8 @@ async def manage_page(user_id: str):
 
         .action-grid {{
             display: grid;
-            grid-template-columns: minmax(180px, 240px) auto;
-            justify-content: space-between;
-            gap: 18px;
+            grid-template-columns: 240px 152px;
+            gap: 14px;
             align-items: end;
         }}
 
@@ -454,6 +454,8 @@ async def manage_page(user_id: str):
         }}
 
         .score-panel {{
+            width: fit-content;
+            max-width: 100%;
             border: 1px solid var(--line);
             background: #1d1d1d;
             border-radius: 12px;
@@ -555,7 +557,7 @@ async def manage_page(user_id: str):
 
         .result {{
             border-top: 1px solid var(--line-soft);
-            padding: 16px 20px 18px;
+            padding: 20px;
             background: #1b1b1b;
         }}
 
@@ -634,7 +636,7 @@ async def manage_page(user_id: str):
 
         .details {{
             border-top: 1px solid var(--line-soft);
-            padding: 13px 20px 18px;
+            padding: 16px 20px;
             color: var(--muted);
             font-size: 12px;
             line-height: 1.65;
@@ -652,6 +654,10 @@ async def manage_page(user_id: str):
         }}
 
         @media (max-width: 640px) {{
+            .score-panel {{
+                width: 100%;
+            }}
+            
             .wrap {{
                 width: min(100% - 24px, 780px);
                 padding-top: 22px;
