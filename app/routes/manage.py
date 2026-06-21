@@ -146,136 +146,626 @@ async def manage_page(user_id: str):
     meta_id, episode = _parse_content_id(raw_id)
     ids = await _resolve_ids(meta_id)
 
-    safe_meta_id = html.escape(meta_id)
-    safe_type = html.escape(content_type)
+    safe_meta_id = html.escape(meta_id, quote=True)
+    safe_type = html.escape(content_type, quote=True)
+    safe_user_path = urllib.parse.quote(user_id, safe="")
     default_progress = episode or 0
 
-    mal_checked = "checked" if user.get("mal_access_token") and user.get("mal_enabled", True) and ids.get("mal_id") else ""
-    anilist_checked = (
-        "checked" if user.get("anilist_token") and user.get("anilist_enabled", True) and ids.get("anilist_id") else ""
-    )
+    mal_available = bool(user.get("mal_access_token") and ids.get("mal_id"))
+    anilist_available = bool(user.get("anilist_token") and ids.get("anilist_id"))
 
-    status_buttons = ""
+    mal_checked = "checked" if mal_available and user.get("mal_enabled", True) else ""
+    anilist_checked = "checked" if anilist_available and user.get("anilist_enabled", True) else ""
+
+    mal_disabled = "" if mal_available else "disabled"
+    anilist_disabled = "" if anilist_available else "disabled"
+
+    mal_card_class = "provider-card" + ("" if mal_available else " is-disabled")
+    anilist_card_class = "provider-card" + ("" if anilist_available else " is-disabled")
+
+    mal_id_text = html.escape(str(ids.get("mal_id") or "not found"), quote=True)
+    anilist_id_text = html.escape(str(ids.get("anilist_id") or "not found"), quote=True)
+
+    mal_caption = f"MAL ID {mal_id_text}" if ids.get("mal_id") else "MAL ID not found"
+    anilist_caption = f"AniList ID {anilist_id_text}" if ids.get("anilist_id") else "AniList ID not found"
+
+    mal_state = "Selected" if mal_checked else ("Unavailable" if not mal_available else "Off")
+    anilist_state = "Selected" if anilist_checked else ("Unavailable" if not anilist_available else "Off")
+
+    status_options = ""
     for key, data in STATUS_MAP.items():
-        status_buttons += f"""
-        <button type="submit" name="status" value="{key}" class="status-btn">
-            {html.escape(data["label"])}
+        selected = "selected" if key == "watching" else ""
+        status_options += f"""
+            <option value="{html.escape(key, quote=True)}" {selected}>
+                {html.escape(data["label"])}
+            </option>
+        """
+
+    score_labels = [
+        (10, "Masterpiece"),
+        (9, "Great"),
+        (8, "Very Good"),
+        (7, "Good"),
+        (6, "Fine"),
+        (5, "Average"),
+        (4, "Bad"),
+        (3, "Very Bad"),
+        (2, "Horrible"),
+        (1, "Appalling"),
+    ]
+
+    score_options = '<option value="">Keep current score</option>'
+    for score, label in score_labels:
+        score_options += f'<option value="{score}">({score}) {html.escape(label)}</option>'
+
+    star_buttons = "".join(
+        f"""
+        <button type="button" class="star-btn" data-score="{score}" aria-label="Set score {score} out of 10">
+            ★
         </button>
         """
+        for score in range(1, 11)
+    )
 
     return f"""
 <!doctype html>
-<html>
+<html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AniSync Manage</title>
     <style>
+        :root {{
+            --bg: #181818;
+            --panel: #202020;
+            --panel-soft: #242424;
+            --line: #333;
+            --line-soft: #2b2b2b;
+            --text: #f4f4f5;
+            --muted: #87909d;
+            --muted-2: #a4aab4;
+            --blue: #2f7df6;
+            --cyan: #18aef5;
+            --green: #0aa66a;
+            --red: #ff4d5a;
+            --gold: #f4c542;
+        }}
+
+        * {{
+            box-sizing: border-box;
+        }}
+
         body {{
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #121212;
-            color: #f5f5f5;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
         }}
-        .wrap {{
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 24px;
-        }}
-        .card {{
-            background: #1f1f1f;
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: 0 10px 40px rgba(0,0,0,.35);
-        }}
-        h1 {{
-            margin: 0 0 8px;
-            font-size: 28px;
-        }}
-        .muted {{
-            color: #aaa;
-            font-size: 14px;
-            margin-bottom: 18px;
-            word-break: break-all;
-        }}
-        .providers, .row {{
+
+        .topbar {{
+            height: 48px;
             display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin: 14px 0;
-        }}
-        label {{
-            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: #2b2b2b;
-            padding: 10px 12px;
-            border-radius: 10px;
+            padding: 0 22px;
+            border-bottom: 1px solid #262626;
+            background: #1f1f1f;
+            font-weight: 800;
+            letter-spacing: .01em;
         }}
-        input[type="number"] {{
-            width: 100%;
-            box-sizing: border-box;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid #444;
-            background: #111;
-            color: white;
+
+        .wrap {{
+            width: min(780px, calc(100% - 28px));
+            margin: 0 auto;
+            padding: 36px 0 46px;
+        }}
+
+        .hero {{
+            margin-bottom: 22px;
+        }}
+
+        .eyebrow {{
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }}
+
+        h1 {{
+            margin: 0;
+            font-size: clamp(28px, 5vw, 44px);
+            line-height: 1.02;
+            letter-spacing: -.04em;
+        }}
+
+        .sub {{
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.45;
+        }}
+
+        .sync-card {{
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: 0 16px 45px rgba(0, 0, 0, .22);
+            overflow: hidden;
+        }}
+
+        .card-head {{
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--line-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }}
+
+        .title-block strong {{
+            display: block;
             font-size: 16px;
         }}
-        .grid {{
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 16px;
+
+        .title-block span {{
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 4px;
+            word-break: break-word;
         }}
-        button {{
-            border: 0;
-            border-radius: 12px;
-            padding: 14px;
-            color: white;
-            background: #0099b8;
-            font-size: 15px;
+
+        .tracker-pills {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }}
+
+        .pill {{
+            border: 1px solid var(--line);
+            background: #1b1b1b;
+            color: var(--muted-2);
+            border-radius: 999px;
+            padding: 7px 10px;
+            font-size: 12px;
             font-weight: 700;
-            cursor: pointer;
         }}
-        .status-btn:nth-child(4) {{
-            background: #c0392b;
+
+        form {{
+            padding: 20px;
         }}
-        .status-btn:nth-child(5) {{
-            background: #8e44ad;
-        }}
+
         .section {{
             margin-top: 22px;
         }}
+
+        .section:first-child {{
+            margin-top: 0;
+        }}
+
         .section-title {{
-            color: #bbb;
+            color: #c9cdd5;
             font-size: 12px;
             text-transform: uppercase;
-            letter-spacing: .08em;
-            margin-bottom: 8px;
+            letter-spacing: .12em;
+            margin-bottom: 10px;
+            font-weight: 800;
         }}
+
+        .providers {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }}
+
+        .provider-card {{
+            min-height: 72px;
+            border: 1px solid var(--line);
+            background: #1d1d1d;
+            border-radius: 12px;
+            padding: 13px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: border-color .18s ease, background .18s ease, transform .18s ease;
+        }}
+
+        .provider-card:hover {{
+            border-color: #4a4a4a;
+            transform: translateY(-1px);
+        }}
+
+        .provider-card.is-disabled {{
+            opacity: .52;
+            cursor: not-allowed;
+        }}
+
+        .provider-card input {{
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }}
+
+        .provider-face {{
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            font-weight: 900;
+            color: white;
+            background: #3552a5;
+            position: relative;
+        }}
+
+        .provider-face.anilist {{
+            background: #1d9bd7;
+        }}
+
+        .provider-check {{
+            position: absolute;
+            right: -5px;
+            bottom: -5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 10px;
+            background: #343434;
+            border: 1px solid var(--line);
+            color: transparent;
+        }}
+
+        .provider-card input:checked + .provider-face .provider-check {{
+            color: white;
+            background: var(--green);
+            border-color: var(--green);
+        }}
+
+        .provider-copy strong {{
+            display: block;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }}
+
+        .provider-copy small {{
+            color: var(--muted);
+            font-size: 12px;
+        }}
+
+        .provider-state {{
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }}
+
+        .provider-card input:checked ~ .provider-state {{
+            color: var(--green);
+        }}
+
+        .field-grid {{
+            display: grid;
+            grid-template-columns: 1fr 150px;
+            gap: 12px;
+        }}
+
+        .control {{
+            width: 100%;
+            height: 46px;
+            border: 1px solid #3b3b3b;
+            border-radius: 10px;
+            background: #151515;
+            color: white;
+            padding: 0 12px;
+            font-size: 15px;
+            outline: none;
+        }}
+
+        .control:focus {{
+            border-color: var(--blue);
+        }}
+
+        select.control {{
+            appearance: auto;
+        }}
+
+        .progress-wrap {{
+            display: grid;
+            grid-template-columns: 42px 1fr 42px;
+            gap: 8px;
+        }}
+
+        .step-btn {{
+            border: 1px solid var(--line);
+            background: var(--panel-soft);
+            color: white;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background .16s ease, transform .16s ease;
+        }}
+
+        .step-btn:hover {{
+            background: #2d2d2d;
+            transform: translateY(-1px);
+        }}
+
+        .score-panel {{
+            border: 1px solid var(--line);
+            background: #1d1d1d;
+            border-radius: 12px;
+            padding: 14px;
+        }}
+
+        .score-top {{
+            display: grid;
+            grid-template-columns: 1fr 210px;
+            gap: 12px;
+            align-items: center;
+        }}
+
+        .stars {{
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }}
+
+        .star-btn {{
+            width: 28px;
+            height: 30px;
+            border: 0;
+            background: transparent;
+            color: #4d4d4d;
+            font-size: 23px;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            transition: color .16s ease, transform .16s ease, text-shadow .16s ease;
+        }}
+
+        .star-btn:hover,
+        .star-btn.is-active {{
+            color: var(--gold);
+            transform: translateY(-1px) scale(1.08);
+        }}
+
+        .star-btn.is-active {{
+            text-shadow: 0 0 12px rgba(244, 197, 66, .22);
+        }}
+
+        .star-btn.is-pop {{
+            animation: star-pop .28s ease;
+        }}
+
+        @keyframes star-pop {{
+            0% {{ transform: scale(1); }}
+            45% {{ transform: scale(1.32) rotate(-7deg); }}
+            100% {{ transform: translateY(-1px) scale(1.08); }}
+        }}
+
+        .score-meta {{
+            margin-top: 10px;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            min-height: 22px;
+        }}
+
+        .score-meta strong {{
+            font-size: 14px;
+        }}
+
+        .score-meta span {{
+            color: var(--muted);
+            font-size: 13px;
+        }}
+
+        .submit-row {{
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }}
+
+        .submit-btn {{
+            height: 48px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--blue);
+            color: white;
+            font-weight: 900;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background .16s ease, transform .16s ease, opacity .16s ease;
+        }}
+
+        .submit-btn:hover {{
+            background: #3b86ff;
+            transform: translateY(-1px);
+        }}
+
+        .submit-btn:disabled {{
+            opacity: .7;
+            cursor: wait;
+            transform: none;
+        }}
+
+        .submit-btn.is-loading .spin {{
+            display: inline-block;
+            animation: spin .8s linear infinite;
+        }}
+
+        @keyframes spin {{
+            to {{ transform: rotate(360deg); }}
+        }}
+
         .result {{
-            margin-top: 16px;
-            color: #0fd18a;
+            border-top: 1px solid var(--line-soft);
+            padding: 16px 20px 20px;
+            background: #1b1b1b;
+        }}
+
+        .result[hidden] {{
             display: none;
         }}
-        @media (max-width: 520px) {{
-            .grid {{
+
+        .result-title {{
+            font-weight: 900;
+            margin-bottom: 12px;
+        }}
+
+        .result-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }}
+
+        .result-line {{
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 11px 12px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 8px;
+            align-items: center;
+            color: var(--muted-2);
+            font-size: 13px;
+        }}
+
+        .result-dot {{
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #777;
+        }}
+
+        .result-line strong {{
+            font-size: 12px;
+            color: var(--muted);
+        }}
+
+        .result-line.is-pending .result-dot {{
+            background: var(--cyan);
+            animation: pulse .8s ease-in-out infinite alternate;
+        }}
+
+        .result-line.is-ok {{
+            border-color: rgba(10, 166, 106, .45);
+        }}
+
+        .result-line.is-ok .result-dot {{
+            background: var(--green);
+        }}
+
+        .result-line.is-ok strong {{
+            color: var(--green);
+        }}
+
+        .result-line.is-failed {{
+            border-color: rgba(255, 77, 90, .45);
+        }}
+
+        .result-line.is-failed .result-dot {{
+            background: var(--red);
+        }}
+
+        .result-line.is-failed strong {{
+            color: var(--red);
+        }}
+
+        .result-line.is-skipped .result-dot {{
+            background: #666;
+        }}
+
+        @keyframes pulse {{
+            from {{ opacity: .35; }}
+            to {{ opacity: 1; }}
+        }}
+
+        .result-message {{
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.4;
+        }}
+
+        .details {{
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.55;
+        }}
+
+        .details summary {{
+            cursor: pointer;
+            color: #b8bec9;
+            font-weight: 700;
+        }}
+
+        .details code {{
+            color: #cbd0d8;
+            word-break: break-word;
+        }}
+
+        @media (max-width: 640px) {{
+            .wrap {{
+                width: min(100% - 24px, 780px);
+                padding-top: 22px;
+            }}
+
+            .card-head,
+            form {{
+                padding: 16px;
+            }}
+
+            .providers,
+            .field-grid,
+            .score-top,
+            .result-grid {{
                 grid-template-columns: 1fr;
             }}
-            .wrap {{
-                padding: 14px;
+
+            .tracker-pills {{
+                justify-content: flex-start;
+            }}
+
+            .card-head {{
+                align-items: flex-start;
+                flex-direction: column;
+            }}
+
+            .star-btn {{
+                width: 26px;
             }}
         }}
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <div class="card">
-            <h1>⚙️ AniSync Manage</h1>
-            <div class="muted">
-                ID: {safe_meta_id}<br>
-                Type: {safe_type}<br>
-                MAL: {html.escape(str(ids.get("mal_id") or "not found"))} · AniList: {html.escape(str(ids.get("anilist_id") or "not found"))}
+    <div class="topbar">AniSync</div>
+
+    <main class="wrap">
+        <section class="hero">
+            <div class="eyebrow">Stremio tracking control</div>
+            <h1>Update anime progress</h1>
+            <p class="sub">Set status, episode progress, and score for the selected anime without leaving the Stremio flow.</p>
+        </section>
+
+        <section class="sync-card">
+            <div class="card-head">
+                <div class="title-block">
+                    <strong>MAL · AniList sync</strong>
+                    <span>{safe_meta_id}</span>
+                </div>
+
+                <div class="tracker-pills">
+                    <span class="pill">Type: {safe_type}</span>
+                    <span class="pill">MAL: {mal_id_text}</span>
+                    <span class="pill">AniList: {anilist_id_text}</span>
+                </div>
             </div>
 
             <form id="manageForm">
@@ -283,68 +773,282 @@ async def manage_page(user_id: str):
                 <input type="hidden" name="content_type" value="{safe_type}">
 
                 <div class="section">
-                    <div class="section-title">Send to</div>
+                    <div class="section-title">Send update to</div>
+
                     <div class="providers">
-                        <label><input type="checkbox" name="provider_mal" value="1" {mal_checked}> MAL</label>
-                        <label><input type="checkbox" name="provider_anilist" value="1" {anilist_checked}> AniList</label>
+                        <label class="{mal_card_class}">
+                            <input type="checkbox" name="provider_mal" value="1" {mal_checked} {mal_disabled}>
+                            <span class="provider-face mal">
+                                MAL
+                                <span class="provider-check">✓</span>
+                            </span>
+                            <span class="provider-copy">
+                                <strong>MyAnimeList</strong>
+                                <small>{mal_caption}</small>
+                            </span>
+                            <span class="provider-state" id="malState">{mal_state}</span>
+                        </label>
+
+                        <label class="{anilist_card_class}">
+                            <input type="checkbox" name="provider_anilist" value="1" {anilist_checked} {anilist_disabled}>
+                            <span class="provider-face anilist">
+                                AL
+                                <span class="provider-check">✓</span>
+                            </span>
+                            <span class="provider-copy">
+                                <strong>AniList</strong>
+                                <small>{anilist_caption}</small>
+                            </span>
+                            <span class="provider-state" id="anilistState">{anilist_state}</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="section field-grid">
+                    <div>
+                        <div class="section-title">Status</div>
+                        <select class="control" name="status" id="statusSelect" required>
+                            {status_options}
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="section-title">Progress</div>
+                        <div class="progress-wrap">
+                            <button type="button" class="step-btn" data-step="-1" aria-label="Decrease progress">−</button>
+                            <input class="control" id="progressInput" type="number" name="progress" min="0" value="{default_progress}">
+                            <button type="button" class="step-btn" data-step="1" aria-label="Increase progress">+</button>
+                        </div>
                     </div>
                 </div>
 
                 <div class="section">
-                    <div class="section-title">Progress</div>
-                    <input type="number" name="progress" min="0" value="{default_progress}">
-                </div>
+                    <div class="section-title">Score</div>
 
-                <div class="section">
-                    <div class="section-title">Score, optional, 0–10</div>
-                    <input type="number" name="score" min="0" max="10" step="1" placeholder="Leave empty to keep current score">
-                </div>
+                    <div class="score-panel">
+                        <div class="score-top">
+                            <div class="stars" id="stars">
+                                {star_buttons}
+                            </div>
 
-                <div class="section">
-                    <div class="section-title">Set status</div>
-                    <div class="grid">
-                        {status_buttons}
+                            <select class="control score-select" name="score" id="scoreSelect">
+                                {score_options}
+                            </select>
+                        </div>
+
+                        <div class="score-meta">
+                            <strong id="scoreValue">— / 10</strong>
+                            <span id="scoreLabel">Leave empty to keep current score</span>
+                        </div>
                     </div>
                 </div>
 
-                <div id="result" class="result"></div>
+                <div class="submit-row">
+                    <button class="submit-btn" id="submitBtn" type="submit">
+                        <span class="spin">↻</span> Update tracking
+                    </button>
+                </div>
             </form>
-        </div>
-    </div>
+
+            <div id="result" class="result" hidden>
+                <div class="result-title" id="resultTitle">Updating...</div>
+
+                <div class="result-grid">
+                    <div class="result-line is-skipped" data-result-provider="mal">
+                        <span class="result-dot"></span>
+                        <span>MyAnimeList</span>
+                        <strong>Waiting</strong>
+                    </div>
+
+                    <div class="result-line is-skipped" data-result-provider="anilist">
+                        <span class="result-dot"></span>
+                        <span>AniList</span>
+                        <strong>Waiting</strong>
+                    </div>
+                </div>
+
+                <p class="result-message" id="resultMessage"></p>
+            </div>
+        </section>
+
+        <details class="details">
+            <summary>Details</summary>
+            <div>ID: <code>{safe_meta_id}</code></div>
+            <div>Type: <code>{safe_type}</code></div>
+            <div>MAL: <code>{mal_id_text}</code></div>
+            <div>AniList: <code>{anilist_id_text}</code></div>
+        </details>
+    </main>
 
     <script>
         const form = document.getElementById("manageForm");
         const result = document.getElementById("result");
+        const resultTitle = document.getElementById("resultTitle");
+        const resultMessage = document.getElementById("resultMessage");
+        const submitBtn = document.getElementById("submitBtn");
+
+        const progressInput = document.getElementById("progressInput");
+        const scoreSelect = document.getElementById("scoreSelect");
+        const scoreValue = document.getElementById("scoreValue");
+        const scoreLabel = document.getElementById("scoreLabel");
+        const stars = document.querySelectorAll(".star-btn");
+
+        const scoreLabels = {{
+            "10": "Masterpiece",
+            "9": "Great",
+            "8": "Very Good",
+            "7": "Good",
+            "6": "Fine",
+            "5": "Average",
+            "4": "Bad",
+            "3": "Very Bad",
+            "2": "Horrible",
+            "1": "Appalling"
+        }};
+
+        document.querySelectorAll(".provider-card input[type='checkbox']").forEach((input) => {{
+            input.addEventListener("change", () => {{
+                const state = input.closest(".provider-card").querySelector(".provider-state");
+                state.textContent = input.checked ? "Selected" : "Off";
+            }});
+        }});
+
+        document.querySelectorAll("[data-step]").forEach((button) => {{
+            button.addEventListener("click", () => {{
+                const step = Number(button.dataset.step);
+                const current = Number(progressInput.value || 0);
+                progressInput.value = Math.max(0, current + step);
+            }});
+        }});
+
+        function syncScoreUi(value, animateButton) {{
+            stars.forEach((star) => {{
+                const starScore = Number(star.dataset.score);
+                const active = value && starScore <= Number(value);
+                star.classList.toggle("is-active", Boolean(active));
+
+                if (animateButton && star === animateButton) {{
+                    star.classList.remove("is-pop");
+                    void star.offsetWidth;
+                    star.classList.add("is-pop");
+                }}
+            }});
+
+            if (value) {{
+                scoreValue.textContent = value + " / 10";
+                scoreLabel.textContent = "(" + value + ") " + scoreLabels[value];
+            }} else {{
+                scoreValue.textContent = "— / 10";
+                scoreLabel.textContent = "Leave empty to keep current score";
+            }}
+        }}
+
+        stars.forEach((star) => {{
+            star.addEventListener("click", () => {{
+                const value = star.dataset.score;
+                scoreSelect.value = value;
+                syncScoreUi(value, star);
+            }});
+        }});
+
+        scoreSelect.addEventListener("change", () => {{
+            syncScoreUi(scoreSelect.value, null);
+        }});
+
+        function setProviderResult(provider, state) {{
+            const line = document.querySelector('[data-result-provider="' + provider + '"]');
+            if (!line) return;
+
+            const text = line.querySelector("strong");
+            line.classList.remove("is-pending", "is-ok", "is-failed", "is-skipped");
+
+            if (state === "pending") {{
+                line.classList.add("is-pending");
+                text.textContent = "Updating";
+            }} else if (state === "ok") {{
+                line.classList.add("is-ok");
+                text.textContent = "OK";
+            }} else if (state === "failed") {{
+                line.classList.add("is-failed");
+                text.textContent = "Failed";
+            }} else {{
+                line.classList.add("is-skipped");
+                text.textContent = "Skipped";
+            }}
+        }}
+
+        function providerFromMessage(message, providerName) {{
+            const lower = (message || "").toLowerCase();
+            const name = providerName.toLowerCase();
+
+            if (lower.includes(name + " ok")) return "ok";
+            if (lower.includes(name + " failed")) return "failed";
+
+            return "skipped";
+        }}
+
+        function normalizeProviders(data) {{
+            const providers = data.providers || {{}};
+            const message = data.message || "";
+
+            return {{
+                mal: providers.mal || providerFromMessage(message, "MAL"),
+                anilist: providers.anilist || providerFromMessage(message, "AniList")
+            }};
+        }}
 
         form.addEventListener("submit", async (e) => {{
             e.preventDefault();
 
-            const clicked = e.submitter;
             const fd = new FormData(form);
 
-            if (clicked && clicked.name) {{
-                fd.set(clicked.name, clicked.value);
-            }}
+            result.hidden = false;
+            resultTitle.textContent = "Updating...";
+            resultMessage.textContent = "Sending changes to selected trackers.";
 
-            result.style.display = "block";
-            result.style.color = "#aaa";
-            result.textContent = "Updating...";
+            setProviderResult("mal", fd.get("provider_mal") ? "pending" : "skipped");
+            setProviderResult("anilist", fd.get("provider_anilist") ? "pending" : "skipped");
 
-            const res = await fetch("/{user_id}/manage/update", {{
-                method: "POST",
-                body: fd,
-            }});
+            submitBtn.disabled = true;
+            submitBtn.classList.add("is-loading");
 
-            const data = await res.json();
+            try {{
+                const res = await fetch("/{safe_user_path}/manage/update", {{
+                    method: "POST",
+                    body: fd,
+                }});
 
-            if (res.ok) {{
-                result.style.color = "#0fd18a";
-                result.textContent = data.message || "Updated.";
-            }} else {{
-                result.style.color = "#ff6961";
-                result.textContent = data.message || "Update failed.";
+                const data = await res.json().catch(() => ({{ message: "Update failed." }}));
+                const providers = normalizeProviders(data);
+
+                setProviderResult("mal", providers.mal);
+                setProviderResult("anilist", providers.anilist);
+
+                const states = Object.values(providers);
+                const okCount = states.filter((state) => state === "ok").length;
+                const failedCount = states.filter((state) => state === "failed").length;
+
+                if (res.ok && failedCount === 0 && okCount > 0) {{
+                    resultTitle.textContent = "Updated";
+                }} else if (res.ok && okCount > 0 && failedCount > 0) {{
+                    resultTitle.textContent = "Partially updated";
+                }} else {{
+                    resultTitle.textContent = "Update failed";
+                }}
+
+                resultMessage.textContent = data.message || "No message returned.";
+            }} catch (err) {{
+                setProviderResult("mal", "failed");
+                setProviderResult("anilist", "failed");
+                resultTitle.textContent = "Update failed";
+                resultMessage.textContent = "Network error while updating.";
+            }} finally {{
+                submitBtn.disabled = false;
+                submitBtn.classList.remove("is-loading");
             }}
         }});
+
+        syncScoreUi("", null);
     </script>
 </body>
 </html>
