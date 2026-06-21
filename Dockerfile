@@ -27,8 +27,8 @@ USER appuser
 EXPOSE 5000
 
 # Container healthcheck using standard Python urllib
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)" || exit 1
 
-CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "4"]
+CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "1"]
 
