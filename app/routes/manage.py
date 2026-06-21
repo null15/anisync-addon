@@ -709,7 +709,7 @@ async def manage_page(user_id: str):
                     <div class="providers">
                         <label class="{mal_card_class}">
                             <input type="checkbox" name="provider_mal" value="1" {mal_checked} {mal_disabled}>
-                            <span class="provider-face mal">
+                            <span class="provider-face">
                                 MAL
                                 <span class="provider-check">✓</span>
                             </span>
@@ -738,7 +738,7 @@ async def manage_page(user_id: str):
                 <div class="section action-grid">
                     <div class="status-field">
                         <div class="section-title">Status</div>
-                        <select class="control" name="status" id="statusSelect" required>
+                        <select class="control" name="status" required>
                             {status_options}
                         </select>
                     </div>
@@ -915,8 +915,8 @@ async def manage_page(user_id: str):
             const lower = (message || "").toLowerCase();
             const name = providerName.toLowerCase();
 
-            if (lower.includes(name.toLowerCase() + " ok")) return "ok";
-            if (lower.includes(name.toLowerCase() + " failed")) return "failed";
+            if (lower.includes(name + " ok")) return "ok";
+            if (lower.includes(name + " failed")) return "failed";
 
             return "skipped";
         }}
