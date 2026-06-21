@@ -252,7 +252,6 @@ async def manage_page(user_id: str):
         .card-head {{
             padding: 18px 20px;
             border-bottom: 1px solid var(--line-soft);
-            margin-bottom: -20px;
         }}
 
         .title-block strong {{
@@ -386,21 +385,17 @@ async def manage_page(user_id: str):
 
         .action-grid {{
             display: grid;
-            grid-template-columns: 125px 152px minmax(0, 1fr);
+            grid-template-columns: 240px 152px;
             gap: 14px;
             align-items: end;
         }}
 
         .status-field {{
-            width: min(125px, 100%);
+            width: min(240px, 100%);
         }}
 
         .progress-field {{
             width: 152px;
-        }}
-        
-        .score-field {{
-           min-width: 0;
         }}
 
         .control {{
@@ -459,7 +454,7 @@ async def manage_page(user_id: str):
         }}
 
         .score-panel {{
-            width: 100%;
+            width: fit-content;
             max-width: 100%;
             border: 1px solid var(--line);
             background: #1d1d1d;
@@ -744,8 +739,9 @@ async def manage_page(user_id: str):
                             <span class="provider-state">{anilist_state}</span>
                         </label>
                     </div>
-                    
-                                    <div class="section action-grid">
+                </div>
+
+                <div class="section action-grid">
                     <div class="status-field">
                         <div class="section-title">Status</div>
                         <select class="control" name="status" required>
@@ -762,9 +758,6 @@ async def manage_page(user_id: str):
                         </div>
                     </div>
                 </div>
-                    
-                </div>
-
 
                 <div class="section">
                     <div class="section-title">Score</div>
