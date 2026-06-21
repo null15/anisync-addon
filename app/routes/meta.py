@@ -60,6 +60,65 @@ async def fetch_cinemeta_metadata(imdb_id: str, media_type: str) -> dict:
         logging.warning("Failed to fetch metadata from Cinemeta: %s", e)
     return {}
 
+def normalize_released(value) -> str | None:
+    if not value:
+        return None
+
+    value = str(value).strip()
+    if not value:
+        return None
+
+    # Already ISO-like
+    if "T" in value:
+        return value
+
+    # YYYY-MM-DD -> Stremio ISO-ish format
+    if len(value) >= 10 and value[4] == "-" and value[7] == "-":
+        return f"{value[:10]}T00:00:00Z"
+
+    return None
+
+
+def int_or_none(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def build_cinemeta_airdate_map(cinemeta_data: dict | None) -> dict[int, str]:
+    """
+    Returns:
+      {
+        1: "2026-04-01T00:00:00Z",
+        2: "2026-04-08T00:00:00Z",
+      }
+
+    Uses Cinemeta/IMDb episode dates when available.
+    """
+    if not cinemeta_data:
+        return {}
+
+    fallback = {}
+    preferred = {}
+
+    for video in cinemeta_data.get("videos") or []:
+        ep_num = int_or_none(video.get("episode"))
+        released = normalize_released(video.get("released"))
+
+        if ep_num is None or not released:
+            continue
+
+        # Keep any match as fallback.
+        fallback.setdefault(ep_num, released)
+
+        # Prefer season 1 / missing season because AniSync/Kitsu anime entries are usually exposed as S1.
+        season = video.get("season")
+        if season in (None, 1, "1"):
+            preferred.setdefault(ep_num, released)
+
+    # preferred overwrites fallback
+    return {**fallback, **preferred}
 
 KITSU_API_BASE = "https://kitsu.io/api/edge"
 TIMEOUT = 10
@@ -158,6 +217,7 @@ def map_kitsu_to_stremio(
             episodes_data.append(item)
 
     anizp_episodes = anizp_data.get("episodes", {}) if anizp_data else {}
+    cinemeta_airdates = build_cinemeta_airdate_map(cinemeta_data)
 
     if subtype == "movie":
         videos.append(
@@ -166,7 +226,10 @@ def map_kitsu_to_stremio(
                 "title": title,
                 "episode": 1,
                 "season": 1,
-                "released": start_date + "T00:00:00Z" if start_date else None,
+                "released": (
+                    normalize_released((cinemeta_data or {}).get("released"))
+                    or normalize_released(start_date)
+                ),
                 "overview": synopsis,
                 "thumbnail": background or poster,
             }
@@ -188,7 +251,13 @@ def map_kitsu_to_stremio(
                     or anizp_ep.get("title", {}).get("x-jat")
                     or f"Episode {ep_num}"
                 )
-                released = attrs.get("airdate") or anizp_ep.get("airdate")
+                ep_num_int = int_or_none(ep_num)
+
+                released = (
+                    cinemeta_airdates.get(ep_num_int)
+                    or normalize_released(attrs.get("airdate"))
+                    or normalize_released(anizp_ep.get("airdate"))
+                )
                 overview = attrs.get("synopsis") or anizp_ep.get("overview") or anizp_ep.get("summary") or ""
                 thumbnail = (
                     anizp_ep.get("image")
@@ -230,7 +299,7 @@ def map_kitsu_to_stremio(
                         "title": ep_title,
                         "episode": ep_num,
                         "season": 1,
-                        "released": released + "T00:00:00Z" if released else None,
+                        "released": released,
                         "overview": overview,
                         "thumbnail": thumbnail,
                     }
@@ -245,6 +314,10 @@ def map_kitsu_to_stremio(
                 )
                 overview = anizp_ep.get("overview") or anizp_ep.get("summary") or f"Episode {i} of {title}"
                 thumbnail = anizp_ep.get("image") or background
+                released = (
+                    cinemeta_airdates.get(i)
+                    or normalize_released(anizp_ep.get("airdate"))
+                )
 
                 # Check filler status for fallback
                 is_filler = False
@@ -277,6 +350,7 @@ def map_kitsu_to_stremio(
                         "title": ep_title,
                         "episode": i,
                         "season": 1,
+                        "released": released,
                         "overview": overview,
                         "thumbnail": thumbnail,
                     }
