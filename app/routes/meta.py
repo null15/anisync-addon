@@ -421,7 +421,7 @@ def map_kitsu_to_stremio(
                 links.append(link)
 
     meta_obj = {
-        "id": imdb_id or meta_id,
+        "id": meta_id,
         "name": title,
         "type": media_type,
         "poster": poster,
