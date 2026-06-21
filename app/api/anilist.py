@@ -41,6 +41,16 @@ mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
 }
 """
 
+SAVE_MANUAL_MUTATION = """
+mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus, $score: Float) {
+  SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status, score: $score) {
+    id
+    status
+    progress
+    score
+  }
+}
+"""
 
 class AnilistTokenInvalidError(Exception):
     """Exception raised when AniList API returns an invalid token error."""
@@ -124,6 +134,26 @@ async def save_entry(token: str, anilist_id: int, progress: int, status: str) ->
     )
     return data["data"]["SaveMediaListEntry"]
 
+async def save_manual_entry(
+    token: str,
+    anilist_id: int,
+    status: str | None = None,
+    progress: int | None = None,
+    score: int | None = None,
+) -> dict:
+    variables = {"mediaId": int(anilist_id)}
+
+    if status:
+        variables["status"] = status
+
+    if progress is not None:
+        variables["progress"] = int(progress)
+
+    if score is not None:
+        variables["score"] = float(score)
+
+    data = await _gql(token, SAVE_MANUAL_MUTATION, variables)
+    return data["data"]["SaveMediaListEntry"]
 
 USER_LIST_QUERY = """
 query ($userId: Int, $status: MediaListStatus) {

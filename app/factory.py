@@ -11,8 +11,8 @@ from app.routes.meta import meta_bp
 from app.routes.poster import poster_bp
 from app.routes.subtitles import subtitles_bp
 from app.routes.ui import ui_bp
+from app.routes.manage import manage_bp
 from app.services.http import close_client, correlation_id_var, init_client
-
 
 def create_app() -> App:
     app_ = App(__name__, template_folder="../templates")
@@ -82,5 +82,6 @@ def create_app() -> App:
     app_.register_blueprint(catalog_bp)
     app_.register_blueprint(meta_bp)
     app_.register_blueprint(poster_bp)
+    app_.register_blueprint(manage_bp)
 
     return app_

@@ -193,7 +193,7 @@ MANIFEST = {
     "logo": f"{Config.PROTOCOL}://{Config.REDIRECT_URL}/logo.png?v=7",
     "description": "Sync and update your anime watchlists on MyAnimeList, AniList, and Simkl in real-time. Easily track episodes, combine watchlists, skip fillers, and get personalized recommendations.",
     "types": ["anime", "series", "movie"],
-    "resources": ["subtitles", "catalog", "meta"],
+    "resources": ["subtitles", "catalog", "meta", "stream"],
     "idPrefixes": ["kitsu", "mal", "anilist", "simkl"],
     "catalogs": CATALOGS,
     "behaviorHints": {
@@ -387,7 +387,7 @@ async def user_manifest(user_id: str):
         user_manifest_data["resources"] = ["subtitles"]
         return await respond_with(user_manifest_data)
 
-    user_manifest_data["resources"] = ["subtitles", "catalog", "meta"]
+    user_manifest_data["resources"] = ["subtitles", "catalog", "meta", "stream"]
 
     # Trigger background recommendations update if enabled
     if enable_recommendations:

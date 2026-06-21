@@ -174,3 +174,34 @@ async def update_watch_status(
     )
     resp.raise_for_status()
     return resp.json()
+
+async def set_list_status(
+    token: str,
+    anime_id: str,
+    status: str | None = None,
+    progress: int | None = None,
+    score: int | None = None,
+) -> dict:
+    body: dict = {}
+
+    if status:
+        body["status"] = status
+
+    if progress is not None:
+        body["num_watched_episodes"] = int(progress)
+
+    if score is not None:
+        body["score"] = int(score)
+
+    if not body:
+        return {}
+
+    client = get_client()
+    resp = await client.put(
+        f"{BASE_URL}/anime/{anime_id}/my_list_status",
+        headers={"Authorization": f"Bearer {token}"},
+        data=body,
+        timeout=TIMEOUT,
+    )
+    resp.raise_for_status()
+    return resp.json()
