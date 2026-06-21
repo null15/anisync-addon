@@ -60,6 +60,54 @@ async def fetch_cinemeta_metadata(imdb_id: str, media_type: str) -> dict:
         logging.warning("Failed to fetch metadata from Cinemeta: %s", e)
     return {}
 
+async def fetch_tvmaze_airdates(imdb_id: str) -> dict[int, str]:
+    if not imdb_id:
+        return {}
+
+    try:
+        client = get_client()
+
+        show_resp = await client.get(
+            "https://api.tvmaze.com/lookup/shows",
+            params={"imdb": imdb_id},
+            timeout=8,
+            follow_redirects=True,
+        )
+
+        if show_resp.status_code != 200:
+            return {}
+
+        show = show_resp.json()
+        tvmaze_id = show.get("id")
+
+        if not tvmaze_id:
+            return {}
+
+        ep_resp = await client.get(
+            f"https://api.tvmaze.com/shows/{tvmaze_id}/episodes",
+            timeout=8,
+        )
+
+        if ep_resp.status_code != 200:
+            return {}
+
+        airdate_map = {}
+
+        for ep in ep_resp.json() or []:
+            season = ep.get("season")
+            number = int_or_none(ep.get("number"))
+            airdate = normalize_released(ep.get("airdate"))
+
+            # Your addon exposes anime as season 1, so match TVMaze season 1.
+            if season in (1, "1") and number and airdate:
+                airdate_map[number] = airdate
+
+        return airdate_map
+
+    except Exception as e:
+        logging.warning("Failed to fetch TVMaze episode dates for %s: %s", imdb_id, e)
+        return {}
+
 def normalize_released(value) -> str | None:
     if not value:
         return None
@@ -147,6 +195,7 @@ def map_kitsu_to_stremio(
     show_filler_tags: bool = True,
     loop=None,
     cinemeta_data: dict = None,
+    tvmaze_airdates: dict = None,
     show_watched_tags: bool = False,
     watched_progress: int = 0,
 ) -> dict:
@@ -155,6 +204,7 @@ def map_kitsu_to_stremio(
         return {}
 
     attributes = data.get("attributes", {})
+    tvmaze_airdates = tvmaze_airdates or {}
     titles = attributes.get("titles", {})
     title = attributes.get("canonicalTitle") or titles.get("en") or titles.get("en_jp") or "Unknown Title"
     synopsis = attributes.get("synopsis", "")
@@ -254,7 +304,8 @@ def map_kitsu_to_stremio(
                 ep_num_int = int_or_none(ep_num)
 
                 released = (
-                    cinemeta_airdates.get(ep_num_int)
+                    tvmaze_airdates.get(ep_num_int)
+                    or cinemeta_airdates.get(ep_num_int)
                     or normalize_released(attrs.get("airdate"))
                     or normalize_released(anizp_ep.get("airdate"))
                 )
@@ -315,7 +366,8 @@ def map_kitsu_to_stremio(
                 overview = anizp_ep.get("overview") or anizp_ep.get("summary") or f"Episode {i} of {title}"
                 thumbnail = anizp_ep.get("image") or background
                 released = (
-                    cinemeta_airdates.get(i)
+                    tvmaze_airdates.get(i)
+                    or cinemeta_airdates.get(i)
                     or normalize_released(anizp_ep.get("airdate"))
                 )
 
@@ -465,10 +517,16 @@ async def handle_meta(user_id: str, meta_type: str, meta_id: str):
                 anizp_data["mappings"]["imdb_id"] = imdb_id
 
         cinemeta_data = {}
+        tvmaze_airdates = {}
+
         if imdb_id:
             subtype = (kitsu_data.get("data", {}).get("attributes", {}).get("subtype") or "tv").lower()
             media_type = "movie" if subtype == "movie" else "series"
-            cinemeta_data = await fetch_cinemeta_metadata(imdb_id, media_type)
+
+            cinemeta_data, tvmaze_airdates = await asyncio.gather(
+                fetch_cinemeta_metadata(imdb_id, media_type),
+                fetch_tvmaze_airdates(imdb_id),
+            )
 
         # Resolve simkl_id if not present but we have kitsu_id
         if not simkl_id and kitsu_id:
@@ -497,6 +555,7 @@ async def handle_meta(user_id: str, meta_type: str, meta_id: str):
             show_filler_tags=show_filler,
             loop=run_loop,
             cinemeta_data=cinemeta_data,
+            tvmaze_airdates=tvmaze_airdates,
             show_watched_tags=show_watched,
             watched_progress=watched_progress,
         )
