@@ -181,23 +181,6 @@ async def manage_page(user_id: str):
             </option>
         """
 
-    score_labels = [
-        (10, "Masterpiece"),
-        (9, "Great"),
-        (8, "Very Good"),
-        (7, "Good"),
-        (6, "Fine"),
-        (5, "Average"),
-        (4, "Bad"),
-        (3, "Very Bad"),
-        (2, "Horrible"),
-        (1, "Appalling"),
-    ]
-
-    score_options = '<option value="">Keep current score</option>'
-    for score, label in score_labels:
-        score_options += f'<option value="{score}">({score}) {html.escape(label)}</option>'
-
     star_buttons = "".join(
         f"""
         <button type="button" class="star-btn" data-score="{score}" aria-label="Set score {score} out of 10">
@@ -224,7 +207,6 @@ async def manage_page(user_id: str):
             --muted: #87909d;
             --muted-2: #a4aab4;
             --blue: #2f7df6;
-            --cyan: #18aef5;
             --green: #0aa66a;
             --red: #ff4d5a;
             --gold: #f4c542;
@@ -255,33 +237,7 @@ async def manage_page(user_id: str):
         .wrap {{
             width: min(780px, calc(100% - 28px));
             margin: 0 auto;
-            padding: 36px 0 46px;
-        }}
-
-        .hero {{
-            margin-bottom: 22px;
-        }}
-
-        .eyebrow {{
-            color: var(--muted);
-            font-size: 12px;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }}
-
-        h1 {{
-            margin: 0;
-            font-size: clamp(28px, 5vw, 44px);
-            line-height: 1.02;
-            letter-spacing: -.04em;
-        }}
-
-        .sub {{
-            margin: 12px 0 0;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.45;
+            padding: 28px 0 46px;
         }}
 
         .sync-card {{
@@ -295,10 +251,6 @@ async def manage_page(user_id: str):
         .card-head {{
             padding: 18px 20px;
             border-bottom: 1px solid var(--line-soft);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
         }}
 
         .title-block strong {{
@@ -312,23 +264,6 @@ async def manage_page(user_id: str):
             font-size: 12px;
             margin-top: 4px;
             word-break: break-word;
-        }}
-
-        .tracker-pills {{
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }}
-
-        .pill {{
-            border: 1px solid var(--line);
-            background: #1b1b1b;
-            color: var(--muted-2);
-            border-radius: 999px;
-            padding: 7px 10px;
-            font-size: 12px;
-            font-weight: 700;
         }}
 
         form {{
@@ -447,10 +382,20 @@ async def manage_page(user_id: str):
             color: var(--green);
         }}
 
-        .field-grid {{
+        .action-grid {{
             display: grid;
-            grid-template-columns: 1fr 150px;
-            gap: 12px;
+            grid-template-columns: minmax(180px, 240px) auto;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: end;
+        }}
+
+        .status-field {{
+            width: min(240px, 100%);
+        }}
+
+        .progress-field {{
+            width: 152px;
         }}
 
         .control {{
@@ -475,8 +420,22 @@ async def manage_page(user_id: str):
 
         .progress-wrap {{
             display: grid;
-            grid-template-columns: 42px 1fr 42px;
-            gap: 8px;
+            grid-template-columns: 42px 54px 42px;
+            gap: 7px;
+        }}
+
+        .progress-input {{
+            padding: 0 4px;
+            text-align: center;
+            font-weight: 800;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }}
+
+        .progress-input::-webkit-outer-spin-button,
+        .progress-input::-webkit-inner-spin-button {{
+            -webkit-appearance: none;
+            margin: 0;
         }}
 
         .step-btn {{
@@ -499,13 +458,6 @@ async def manage_page(user_id: str):
             background: #1d1d1d;
             border-radius: 12px;
             padding: 14px;
-        }}
-
-        .score-top {{
-            display: grid;
-            grid-template-columns: 1fr 210px;
-            gap: 12px;
-            align-items: center;
         }}
 
         .stars {{
@@ -566,12 +518,10 @@ async def manage_page(user_id: str):
 
         .submit-row {{
             margin-top: 24px;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
         }}
 
         .submit-btn {{
+            width: 100%;
             height: 48px;
             border: 0;
             border-radius: 10px;
@@ -605,7 +555,7 @@ async def manage_page(user_id: str):
 
         .result {{
             border-top: 1px solid var(--line-soft);
-            padding: 16px 20px 20px;
+            padding: 16px 20px 18px;
             background: #1b1b1b;
         }}
 
@@ -649,7 +599,7 @@ async def manage_page(user_id: str):
         }}
 
         .result-line.is-pending .result-dot {{
-            background: var(--cyan);
+            background: #18aef5;
             animation: pulse .8s ease-in-out infinite alternate;
         }}
 
@@ -677,33 +627,23 @@ async def manage_page(user_id: str):
             color: var(--red);
         }}
 
-        .result-line.is-skipped .result-dot {{
-            background: #666;
-        }}
-
         @keyframes pulse {{
             from {{ opacity: .35; }}
             to {{ opacity: 1; }}
         }}
 
-        .result-message {{
-            margin: 12px 0 0;
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.4;
-        }}
-
         .details {{
-            margin-top: 14px;
+            border-top: 1px solid var(--line-soft);
+            padding: 13px 20px 18px;
             color: var(--muted);
             font-size: 12px;
-            line-height: 1.55;
+            line-height: 1.65;
         }}
 
         .details summary {{
             cursor: pointer;
             color: #b8bec9;
-            font-weight: 700;
+            font-weight: 800;
         }}
 
         .details code {{
@@ -718,24 +658,26 @@ async def manage_page(user_id: str):
             }}
 
             .card-head,
-            form {{
-                padding: 16px;
+            form,
+            .result,
+            .details {{
+                padding-left: 16px;
+                padding-right: 16px;
             }}
 
             .providers,
-            .field-grid,
-            .score-top,
+            .action-grid,
             .result-grid {{
                 grid-template-columns: 1fr;
             }}
 
-            .tracker-pills {{
-                justify-content: flex-start;
+            .status-field,
+            .progress-field {{
+                width: 100%;
             }}
 
-            .card-head {{
-                align-items: flex-start;
-                flex-direction: column;
+            .progress-wrap {{
+                grid-template-columns: 42px 1fr 42px;
             }}
 
             .star-btn {{
@@ -748,29 +690,18 @@ async def manage_page(user_id: str):
     <div class="topbar">AniSync</div>
 
     <main class="wrap">
-        <section class="hero">
-            <div class="eyebrow">Stremio tracking control</div>
-            <h1>Update anime progress</h1>
-            <p class="sub">Set status, episode progress, and score for the selected anime without leaving the Stremio flow.</p>
-        </section>
-
         <section class="sync-card">
             <div class="card-head">
                 <div class="title-block">
-                    <strong>MAL · AniList sync</strong>
+                    <strong>Tracker</strong>
                     <span>{safe_meta_id}</span>
-                </div>
-
-                <div class="tracker-pills">
-                    <span class="pill">Type: {safe_type}</span>
-                    <span class="pill">MAL: {mal_id_text}</span>
-                    <span class="pill">AniList: {anilist_id_text}</span>
                 </div>
             </div>
 
             <form id="manageForm">
                 <input type="hidden" name="meta_id" value="{safe_meta_id}">
                 <input type="hidden" name="content_type" value="{safe_type}">
+                <input type="hidden" name="score" id="scoreInput" value="">
 
                 <div class="section">
                     <div class="section-title">Send update to</div>
@@ -786,7 +717,7 @@ async def manage_page(user_id: str):
                                 <strong>MyAnimeList</strong>
                                 <small>{mal_caption}</small>
                             </span>
-                            <span class="provider-state" id="malState">{mal_state}</span>
+                            <span class="provider-state">{mal_state}</span>
                         </label>
 
                         <label class="{anilist_card_class}">
@@ -799,24 +730,24 @@ async def manage_page(user_id: str):
                                 <strong>AniList</strong>
                                 <small>{anilist_caption}</small>
                             </span>
-                            <span class="provider-state" id="anilistState">{anilist_state}</span>
+                            <span class="provider-state">{anilist_state}</span>
                         </label>
                     </div>
                 </div>
 
-                <div class="section field-grid">
-                    <div>
+                <div class="section action-grid">
+                    <div class="status-field">
                         <div class="section-title">Status</div>
                         <select class="control" name="status" id="statusSelect" required>
                             {status_options}
                         </select>
                     </div>
 
-                    <div>
+                    <div class="progress-field">
                         <div class="section-title">Progress</div>
                         <div class="progress-wrap">
                             <button type="button" class="step-btn" data-step="-1" aria-label="Decrease progress">−</button>
-                            <input class="control" id="progressInput" type="number" name="progress" min="0" value="{default_progress}">
+                            <input class="control progress-input" id="progressInput" type="number" name="progress" min="0" value="{default_progress}">
                             <button type="button" class="step-btn" data-step="1" aria-label="Increase progress">+</button>
                         </div>
                     </div>
@@ -826,14 +757,8 @@ async def manage_page(user_id: str):
                     <div class="section-title">Score</div>
 
                     <div class="score-panel">
-                        <div class="score-top">
-                            <div class="stars" id="stars">
-                                {star_buttons}
-                            </div>
-
-                            <select class="control score-select" name="score" id="scoreSelect">
-                                {score_options}
-                            </select>
+                        <div class="stars" id="stars">
+                            {star_buttons}
                         </div>
 
                         <div class="score-meta">
@@ -866,31 +791,29 @@ async def manage_page(user_id: str):
                         <strong>Waiting</strong>
                     </div>
                 </div>
-
-                <p class="result-message" id="resultMessage"></p>
             </div>
-        </section>
 
-        <details class="details">
-            <summary>Details</summary>
-            <div>ID: <code>{safe_meta_id}</code></div>
-            <div>Type: <code>{safe_type}</code></div>
-            <div>MAL: <code>{mal_id_text}</code></div>
-            <div>AniList: <code>{anilist_id_text}</code></div>
-        </details>
+            <details class="details">
+                <summary>Details</summary>
+                <div>ID: <code>{safe_meta_id}</code></div>
+                <div>Type: <code>{safe_type}</code></div>
+                <div>MAL: <code>{mal_id_text}</code></div>
+                <div>AniList: <code>{anilist_id_text}</code></div>
+            </details>
+        </section>
     </main>
 
     <script>
         const form = document.getElementById("manageForm");
         const result = document.getElementById("result");
         const resultTitle = document.getElementById("resultTitle");
-        const resultMessage = document.getElementById("resultMessage");
         const submitBtn = document.getElementById("submitBtn");
 
         const progressInput = document.getElementById("progressInput");
-        const scoreSelect = document.getElementById("scoreSelect");
+        const scoreInput = document.getElementById("scoreInput");
         const scoreValue = document.getElementById("scoreValue");
         const scoreLabel = document.getElementById("scoreLabel");
+        const starsWrap = document.getElementById("stars");
         const stars = document.querySelectorAll(".star-btn");
 
         const scoreLabels = {{
@@ -921,11 +844,12 @@ async def manage_page(user_id: str):
             }});
         }});
 
-        function syncScoreUi(value, animateButton) {{
+        function paintStars(value, animateButton) {{
+            const numericValue = Number(value || 0);
+
             stars.forEach((star) => {{
                 const starScore = Number(star.dataset.score);
-                const active = value && starScore <= Number(value);
-                star.classList.toggle("is-active", Boolean(active));
+                star.classList.toggle("is-active", starScore <= numericValue);
 
                 if (animateButton && star === animateButton) {{
                     star.classList.remove("is-pop");
@@ -933,7 +857,9 @@ async def manage_page(user_id: str):
                     star.classList.add("is-pop");
                 }}
             }});
+        }}
 
+        function showScore(value) {{
             if (value) {{
                 scoreValue.textContent = value + " / 10";
                 scoreLabel.textContent = "(" + value + ") " + scoreLabels[value];
@@ -943,16 +869,24 @@ async def manage_page(user_id: str):
             }}
         }}
 
+        function syncScoreUi(value, animateButton) {{
+            paintStars(value, animateButton);
+            showScore(value);
+        }}
+
         stars.forEach((star) => {{
+            star.addEventListener("mouseenter", () => {{
+                syncScoreUi(star.dataset.score, null);
+            }});
+
             star.addEventListener("click", () => {{
-                const value = star.dataset.score;
-                scoreSelect.value = value;
-                syncScoreUi(value, star);
+                scoreInput.value = star.dataset.score;
+                syncScoreUi(scoreInput.value, star);
             }});
         }});
 
-        scoreSelect.addEventListener("change", () => {{
-            syncScoreUi(scoreSelect.value, null);
+        starsWrap.addEventListener("mouseleave", () => {{
+            syncScoreUi(scoreInput.value, null);
         }});
 
         function setProviderResult(provider, state) {{
@@ -981,8 +915,8 @@ async def manage_page(user_id: str):
             const lower = (message || "").toLowerCase();
             const name = providerName.toLowerCase();
 
-            if (lower.includes(name + " ok")) return "ok";
-            if (lower.includes(name + " failed")) return "failed";
+            if (lower.includes(name.toLowerCase() + " ok")) return "ok";
+            if (lower.includes(name.toLowerCase() + " failed")) return "failed";
 
             return "skipped";
         }}
@@ -1004,7 +938,6 @@ async def manage_page(user_id: str):
 
             result.hidden = false;
             resultTitle.textContent = "Updating...";
-            resultMessage.textContent = "Sending changes to selected trackers.";
 
             setProviderResult("mal", fd.get("provider_mal") ? "pending" : "skipped");
             setProviderResult("anilist", fd.get("provider_anilist") ? "pending" : "skipped");
@@ -1035,13 +968,10 @@ async def manage_page(user_id: str):
                 }} else {{
                     resultTitle.textContent = "Update failed";
                 }}
-
-                resultMessage.textContent = data.message || "No message returned.";
             }} catch (err) {{
                 setProviderResult("mal", "failed");
                 setProviderResult("anilist", "failed");
                 resultTitle.textContent = "Update failed";
-                resultMessage.textContent = "Network error while updating.";
             }} finally {{
                 submitBtn.disabled = false;
                 submitBtn.classList.remove("is-loading");
