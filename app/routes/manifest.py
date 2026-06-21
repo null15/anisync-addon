@@ -187,7 +187,7 @@ CATALOGS = [
 ]
 
 MANIFEST = {
-    "id": "com.anisync.stremio",
+    "id": "com.null15.anisync.custom",
     "version": "1.3.0",
     "name": "AniSync",
     "logo": f"{Config.PROTOCOL}://{Config.REDIRECT_URL}/logo.png?v=7",
