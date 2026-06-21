@@ -163,12 +163,12 @@ async def manage_page(user_id: str):
         </button>
         """
 
-    return f"""
+        return f"""
 <!doctype html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AniSync Manage</title>
+    <title>AniSync</title>
     <style>
         * {{
             box-sizing: border-box;
@@ -179,255 +179,417 @@ async def manage_page(user_id: str):
             min-height: 100vh;
             font-family: Inter, Arial, sans-serif;
             background:
-                radial-gradient(circle at top left, rgba(0, 170, 210, 0.18), transparent 35%),
-                radial-gradient(circle at bottom right, rgba(140, 70, 180, 0.18), transparent 35%),
+                radial-gradient(circle at 15% 10%, rgba(0, 188, 220, .16), transparent 34%),
+                radial-gradient(circle at 85% 85%, rgba(125, 79, 180, .14), transparent 36%),
                 #111;
-            color: #f5f5f5;
+            color: #f3f3f3;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px;
+            padding: 22px;
         }}
 
         .modal {{
-            width: min(920px, 100%);
-            background: linear-gradient(145deg, #242424, #191919);
+            width: min(900px, 100%);
+            min-height: 560px;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.055), rgba(255,255,255,.025)),
+                #202020;
             border: 1px solid rgba(255,255,255,.08);
-            border-radius: 22px;
-            padding: 34px;
-            box-shadow: 0 28px 90px rgba(0,0,0,.55);
+            border-radius: 18px;
+            box-shadow: 0 30px 90px rgba(0,0,0,.55);
+            padding: 54px 58px;
         }}
 
-        .header {{
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
-            align-items: flex-start;
-            margin-bottom: 28px;
-        }}
-
-        h1 {{
+        .title {{
+            font-size: clamp(36px, 5vw, 54px);
+            line-height: .96;
+            font-weight: 900;
+            letter-spacing: -.045em;
             margin: 0;
-            font-size: 36px;
-            line-height: 1.05;
-            font-weight: 800;
         }}
 
-        .badge {{
+        .pill {{
             display: inline-block;
-            margin-top: 12px;
+            margin-top: 14px;
             padding: 6px 12px;
             border-radius: 999px;
             background: rgba(255,255,255,.12);
             color: #ddd;
             font-size: 13px;
+            font-weight: 700;
         }}
 
-        .meta {{
-            color: #aaa;
+        .subtle {{
+            margin-top: 22px;
+            max-width: 620px;
+            color: #9d9d9d;
             line-height: 1.55;
-            font-size: 14px;
-            word-break: break-word;
-            max-width: 380px;
+            font-size: 15px;
         }}
 
         .section {{
-            margin-top: 24px;
+            margin-top: 34px;
         }}
 
         .section-title {{
-            color: #999;
+            color: #8e8e8e;
             font-size: 12px;
             text-transform: uppercase;
-            letter-spacing: .12em;
-            margin-bottom: 12px;
+            letter-spacing: .14em;
+            margin-bottom: 14px;
         }}
 
-        .providers {{
+        .services {{
             display: flex;
-            gap: 12px;
+            gap: 18px;
             flex-wrap: wrap;
         }}
 
-        label {{
+        .service {{
             display: inline-flex;
             align-items: center;
-            gap: 9px;
-            padding: 12px 15px;
+            gap: 10px;
+            padding: 12px 16px;
             border-radius: 12px;
-            background: rgba(255,255,255,.07);
-            border: 1px solid rgba(255,255,255,.08);
-            font-weight: 600;
+            background: rgba(255,255,255,.055);
+            color: #eee;
+            font-weight: 700;
         }}
 
         input[type="checkbox"] {{
             width: 18px;
             height: 18px;
-            accent-color: #00a9d6;
+            accent-color: #00b7dc;
         }}
 
-        .fields {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
+        .score-row {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
         }}
 
-        input[type="number"] {{
-            width: 100%;
-            padding: 15px 16px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,.12);
-            background: rgba(0,0,0,.24);
-            color: white;
-            font-size: 18px;
-            outline: none;
+        .stars {{
+            display: flex;
+            gap: 9px;
+            align-items: center;
         }}
 
-        input[type="number"]:focus {{
-            border-color: #00b8df;
-            box-shadow: 0 0 0 3px rgba(0,184,223,.15);
+        .star {{
+            appearance: none;
+            border: 0;
+            background: transparent;
+            color: #4c4c4c;
+            font-size: clamp(32px, 5vw, 52px);
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            transition: transform .12s ease, color .12s ease;
         }}
 
-        .grid {{
+        .star.active {{
+            color: #00b7dc;
+        }}
+
+        .star:hover {{
+            transform: scale(1.08);
+        }}
+
+        .score-value {{
+            min-width: 70px;
+            text-align: center;
+            color: #00b7dc;
+            font-size: 28px;
+            font-weight: 900;
+        }}
+
+        .score-value small {{
+            color: #aaa;
+            font-size: 16px;
+            font-weight: 500;
+        }}
+
+        .status-grid {{
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
+            gap: 10px;
         }}
 
-        button {{
-            border: 0;
-            border-radius: 15px;
-            padding: 16px 14px;
-            color: white;
-            background: linear-gradient(135deg, #00a6c8, #008aad);
-            font-size: 15px;
+        .status-chip {{
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(255,255,255,.06);
+            color: #eee;
+            border-radius: 999px;
+            padding: 13px 12px;
+            font-size: 14px;
             font-weight: 800;
             cursor: pointer;
-            transition: transform .12s ease, filter .12s ease;
+            transition: background .12s ease, transform .12s ease, border-color .12s ease;
         }}
 
-        button:hover {{
+        .status-chip:hover {{
             transform: translateY(-1px);
+            background: rgba(255,255,255,.10);
+        }}
+
+        .status-chip.active {{
+            background: #00a1c6;
+            border-color: #00c4ea;
+            color: white;
+        }}
+
+        .progress-wrap {{
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.055);
+        }}
+
+        .round-btn {{
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 0;
+            background: rgba(255,255,255,.10);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }}
+
+        .progress-num {{
+            width: 56px;
+            border: 0;
+            background: transparent;
+            color: white;
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            outline: none;
+            appearance: textfield;
+        }}
+
+        .progress-num::-webkit-outer-spin-button,
+        .progress-num::-webkit-inner-spin-button {{
+            -webkit-appearance: none;
+            margin: 0;
+        }}
+
+        .bottom {{
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: center;
+            margin-top: 34px;
+            flex-wrap: wrap;
+        }}
+
+        .send {{
+            min-width: 250px;
+            border: 0;
+            border-radius: 10px;
+            padding: 16px 26px;
+            background: #008fad;
+            color: white;
+            font-size: 16px;
+            font-weight: 900;
+            cursor: pointer;
+        }}
+
+        .send:hover {{
             filter: brightness(1.08);
         }}
 
-        button[value="completed"] {{
-            background: linear-gradient(135deg, #00b894, #008f72);
-        }}
-
-        button[value="dropped"] {{
-            background: linear-gradient(135deg, #d94f4f, #a93434);
-        }}
-
-        button[value="on_hold"] {{
-            background: linear-gradient(135deg, #9b59b6, #76448a);
-        }}
-
-        button[value="plan_to_watch"] {{
-            background: linear-gradient(135deg, #3498db, #2471a3);
-        }}
-
         .result {{
-            margin-top: 22px;
-            padding: 14px 16px;
-            border-radius: 14px;
-            background: rgba(0,0,0,.22);
             color: #00e39f;
+            font-weight: 800;
             display: none;
-            font-weight: 700;
         }}
 
-        @media (max-width: 720px) {{
+        details {{
+            margin-top: 22px;
+            color: #8d8d8d;
+            font-size: 12px;
+        }}
+
+        summary {{
+            cursor: pointer;
+            width: fit-content;
+        }}
+
+        .ids {{
+            margin-top: 8px;
+            line-height: 1.5;
+            word-break: break-all;
+        }}
+
+        @media (max-width: 760px) {{
             body {{
                 align-items: flex-start;
-                padding: 12px;
+                padding: 10px;
             }}
 
             .modal {{
-                padding: 22px;
-                border-radius: 18px;
+                padding: 28px 22px;
+                min-height: unset;
             }}
 
-            .header {{
-                flex-direction: column;
+            .status-grid {{
+                grid-template-columns: 1fr 1fr;
             }}
 
-            h1 {{
-                font-size: 30px;
+            .services {{
+                gap: 10px;
             }}
 
-            .fields {{
-                grid-template-columns: 1fr;
+            .send {{
+                width: 100%;
             }}
 
-            .grid {{
-                grid-template-columns: 1fr;
+            .bottom {{
+                align-items: stretch;
             }}
         }}
     </style>
 </head>
 <body>
     <div class="modal">
-        <div class="header">
-            <div>
-                <h1>⚙️ AniSync Manage</h1>
-                <span class="badge">Anime status editor</span>
-            </div>
-            <div class="meta">
-                ID: {safe_meta_id}<br>
-                Type: {safe_type}<br>
-                MAL: {html.escape(str(ids.get("mal_id") or "not found"))}<br>
-                AniList: {html.escape(str(ids.get("anilist_id") or "not found"))}
-            </div>
+        <h1 class="title">AniSync</h1>
+        <span class="pill">MAL · AniList</span>
+
+        <div class="subtle">
+            Update list status, progress, and score without leaving the Stremio flow.
         </div>
 
         <form id="manageForm">
             <input type="hidden" name="meta_id" value="{safe_meta_id}">
             <input type="hidden" name="content_type" value="{safe_type}">
+            <input type="hidden" name="status" id="statusInput" value="watching">
+            <input type="hidden" name="score" id="scoreInput" value="">
 
             <div class="section">
                 <div class="section-title">Send to services</div>
-                <div class="providers">
-                    <label><input type="checkbox" name="provider_mal" value="1" {mal_checked}> MyAnimeList</label>
-                    <label><input type="checkbox" name="provider_anilist" value="1" {anilist_checked}> AniList</label>
-                </div>
-            </div>
-
-            <div class="section fields">
-                <div>
-                    <div class="section-title">Progress</div>
-                    <input type="number" name="progress" min="0" value="{default_progress}">
-                </div>
-                <div>
-                    <div class="section-title">Score, optional, 0–10</div>
-                    <input type="number" name="score" min="0" max="10" step="1" placeholder="Keep current score">
+                <div class="services">
+                    <label class="service">
+                        <input type="checkbox" name="provider_mal" value="1" {mal_checked}>
+                        MyAnimeList
+                    </label>
+                    <label class="service">
+                        <input type="checkbox" name="provider_anilist" value="1" {anilist_checked}>
+                        AniList
+                    </label>
                 </div>
             </div>
 
             <div class="section">
-                <div class="section-title">Set status</div>
-                <div class="grid">
-                    {status_buttons}
+                <div class="section-title">Status</div>
+                <div class="status-grid">
+                    <button type="button" class="status-chip active" data-status="watching">Watching</button>
+                    <button type="button" class="status-chip" data-status="plan_to_watch">Plan</button>
+                    <button type="button" class="status-chip" data-status="completed">Completed</button>
+                    <button type="button" class="status-chip" data-status="on_hold">On Hold</button>
+                    <button type="button" class="status-chip" data-status="dropped">Dropped</button>
                 </div>
             </div>
 
-            <div id="result" class="result"></div>
+            <div class="section">
+                <div class="section-title">Progress</div>
+                <div class="progress-wrap">
+                    <button type="button" class="round-btn" id="minusBtn">−</button>
+                    <input class="progress-num" id="progressInput" type="number" name="progress" min="0" value="{default_progress}">
+                    <button type="button" class="round-btn" id="plusBtn">+</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Your score</div>
+                <div class="score-row">
+                    <div class="stars" id="stars">
+                        <button type="button" class="star" data-score="1">★</button>
+                        <button type="button" class="star" data-score="2">★</button>
+                        <button type="button" class="star" data-score="3">★</button>
+                        <button type="button" class="star" data-score="4">★</button>
+                        <button type="button" class="star" data-score="5">★</button>
+                        <button type="button" class="star" data-score="6">★</button>
+                        <button type="button" class="star" data-score="7">★</button>
+                        <button type="button" class="star" data-score="8">★</button>
+                        <button type="button" class="star" data-score="9">★</button>
+                        <button type="button" class="star" data-score="10">★</button>
+                    </div>
+                    <div class="score-value"><span id="scoreText">—</span> <small>/ 10</small></div>
+                </div>
+            </div>
+
+            <div class="bottom">
+                <div id="result" class="result"></div>
+                <button type="submit" class="send">Update</button>
+            </div>
+
+            <details>
+                <summary>details</summary>
+                <div class="ids">
+                    ID: {safe_meta_id}<br>
+                    Type: {safe_type}<br>
+                    MAL: {html.escape(str(ids.get("mal_id") or "not found"))}<br>
+                    AniList: {html.escape(str(ids.get("anilist_id") or "not found"))}
+                </div>
+            </details>
         </form>
     </div>
 
     <script>
         const form = document.getElementById("manageForm");
         const result = document.getElementById("result");
+        const statusInput = document.getElementById("statusInput");
+        const scoreInput = document.getElementById("scoreInput");
+        const scoreText = document.getElementById("scoreText");
+        const progressInput = document.getElementById("progressInput");
+
+        document.querySelectorAll(".status-chip").forEach((btn) => {{
+            btn.addEventListener("click", () => {{
+                document.querySelectorAll(".status-chip").forEach((b) => b.classList.remove("active"));
+                btn.classList.add("active");
+                statusInput.value = btn.dataset.status;
+            }});
+        }});
+
+        function setScore(score) {{
+            scoreInput.value = score;
+            scoreText.textContent = score || "—";
+
+            document.querySelectorAll(".star").forEach((star) => {{
+                const value = Number(star.dataset.score);
+                star.classList.toggle("active", score && value <= score);
+            }});
+        }}
+
+        document.querySelectorAll(".star").forEach((star) => {{
+            star.addEventListener("click", () => {{
+                const score = Number(star.dataset.score);
+                if (String(score) === scoreInput.value) {{
+                    setScore("");
+                }} else {{
+                    setScore(score);
+                }}
+            }});
+        }});
+
+        document.getElementById("minusBtn").addEventListener("click", () => {{
+            const current = Number(progressInput.value || 0);
+            progressInput.value = Math.max(0, current - 1);
+        }});
+
+        document.getElementById("plusBtn").addEventListener("click", () => {{
+            const current = Number(progressInput.value || 0);
+            progressInput.value = current + 1;
+        }});
 
         form.addEventListener("submit", async (e) => {{
             e.preventDefault();
 
-            const clicked = e.submitter;
             const fd = new FormData(form);
-
-            if (clicked && clicked.name) {{
-                fd.set(clicked.name, clicked.value);
-            }}
 
             result.style.display = "block";
             result.style.color = "#aaa";
