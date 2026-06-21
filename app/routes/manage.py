@@ -252,6 +252,7 @@ async def manage_page(user_id: str):
         .card-head {{
             padding: 18px 20px;
             border-bottom: 1px solid var(--line-soft);
+            margin-bottom: -20px;
         }}
 
         .title-block strong {{
@@ -385,17 +386,21 @@ async def manage_page(user_id: str):
 
         .action-grid {{
             display: grid;
-            grid-template-columns: 240px 152px;
+            grid-template-columns: 125px 152px minmax(0, 1fr);
             gap: 14px;
             align-items: end;
         }}
 
         .status-field {{
-            width: min(240px, 100%);
+            width: min(125px, 100%);
         }}
 
         .progress-field {{
             width: 152px;
+        }}
+
+        .score-field {{
+            min-width: 0;
         }}
 
         .control {{
@@ -454,7 +459,7 @@ async def manage_page(user_id: str):
         }}
 
         .score-panel {{
-            width: fit-content;
+            width: 100%;
             max-width: 100%;
             border: 1px solid var(--line);
             background: #1d1d1d;
@@ -678,7 +683,8 @@ async def manage_page(user_id: str):
             }}
 
             .status-field,
-            .progress-field {{
+            .progress-field,
+            .score-field {{
                 width: 100%;
             }}
 
@@ -757,19 +763,19 @@ async def manage_page(user_id: str):
                             <button type="button" class="step-btn" data-step="1" aria-label="Increase progress">+</button>
                         </div>
                     </div>
-                </div>
 
-                <div class="section">
-                    <div class="section-title">Score</div>
+                    <div class="score-field">
+                        <div class="section-title">Score</div>
 
-                    <div class="score-panel">
-                        <div class="stars" id="stars">
-                            {star_buttons}
-                        </div>
+                        <div class="score-panel">
+                            <div class="stars" id="stars">
+                                {star_buttons}
+                            </div>
 
-                        <div class="score-meta">
-                            <strong id="scoreValue">— / 10</strong>
-                            <span id="scoreLabel">Leave empty to keep current score</span>
+                            <div class="score-meta">
+                                <strong id="scoreValue">— / 10</strong>
+                                <span id="scoreLabel">Leave empty to keep current score</span>
+                            </div>
                         </div>
                     </div>
                 </div>
