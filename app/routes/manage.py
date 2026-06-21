@@ -131,1387 +131,1037 @@ async def handle_stream(user_id: str, content_type: str, content_id: str):
     )
 
 
-@manage_bp.route("/<user_id>/manage", methods=["GET"])
+@manage_bp.route('/<user_id>/manage', methods=['GET'])
 @rate_limit(limit=60, period_seconds=60)
 async def manage_page(user_id: str):
     if not is_valid_user_id(user_id):
-        return "Invalid user.", 400
+        return 'Invalid user.', 400
 
     user = get_user(user_id)
     if not user:
-        return "Unknown user.", 404
+        return 'Unknown user.', 404
 
-    raw_id = request.args.get("id", "")
-    content_type = request.args.get("type", "series")
+    raw_id = request.args.get('id', '')
+    content_type = request.args.get('type', 'series')
     meta_id, episode = _parse_content_id(raw_id)
     ids = await _resolve_ids(meta_id)
 
-    safe_user_id = html.escape(urllib.parse.quote(user_id, safe=""), quote=True)
-    form_action = f"/{safe_user_id}/manage/update"
-
+    safe_form_action = html.escape(f"/{urllib.parse.quote(user_id, safe='')}/manage/update", quote=True)
     safe_meta_id = html.escape(meta_id, quote=True)
     safe_type = html.escape(content_type, quote=True)
-    safe_kitsu_id = html.escape(str(ids.get("kitsu_id") or "not found"), quote=True)
-    safe_mal_id = html.escape(str(ids.get("mal_id") or "not found"), quote=True)
-    safe_anilist_id = html.escape(str(ids.get("anilist_id") or "not found"), quote=True)
-    safe_simkl_id = html.escape(str(ids.get("simkl_id") or "not found"), quote=True)
+    safe_kitsu_id = html.escape(str(ids.get('kitsu_id') or 'not found'), quote=True)
+    safe_mal_id = html.escape(str(ids.get('mal_id') or 'not found'), quote=True)
+    safe_anilist_id = html.escape(str(ids.get('anilist_id') or 'not found'), quote=True)
+    safe_simkl_id = html.escape(str(ids.get('simkl_id') or 'not found'), quote=True)
+    safe_default_progress = html.escape(str(episode or 0), quote=True)
 
-    default_progress = episode or 0
-
-    mal_has_token = bool(user.get("mal_access_token"))
-    mal_enabled = bool(user.get("mal_enabled", True))
-    mal_has_id = bool(ids.get("mal_id"))
+    mal_has_token = bool(user.get('mal_access_token'))
+    mal_enabled = bool(user.get('mal_enabled', True))
+    mal_has_id = bool(ids.get('mal_id'))
     mal_available = mal_has_token and mal_enabled and mal_has_id
 
-    anilist_has_token = bool(user.get("anilist_token"))
-    anilist_enabled = bool(user.get("anilist_enabled", True))
-    anilist_has_id = bool(ids.get("anilist_id"))
+    anilist_has_token = bool(user.get('anilist_token'))
+    anilist_enabled = bool(user.get('anilist_enabled', True))
+    anilist_has_id = bool(ids.get('anilist_id'))
     anilist_available = anilist_has_token and anilist_enabled and anilist_has_id
 
     def provider_note(has_token: bool, enabled: bool, has_id: bool) -> str:
         if not has_token:
-            return "Not connected"
+            return 'Not connected'
         if not enabled:
-            return "Disabled"
+            return 'Disabled'
         if not has_id:
-            return "No ID found"
-        return "Ready"
+            return 'No ID found'
+        return 'Ready'
 
-    mal_checked = "checked" if mal_available else ""
-    anilist_checked = "checked" if anilist_available else ""
-    mal_disabled = "" if mal_available else "disabled"
-    anilist_disabled = "" if anilist_available else "disabled"
-    mal_state = "" if mal_available else "is-disabled"
-    anilist_state = "" if anilist_available else "is-disabled"
+    mal_note = html.escape(provider_note(mal_has_token, mal_enabled, mal_has_id), quote=True)
+    anilist_note = html.escape(provider_note(anilist_has_token, anilist_enabled, anilist_has_id), quote=True)
 
-    mal_note = html.escape(provider_note(mal_has_token, mal_enabled, mal_has_id))
-    anilist_note = html.escape(provider_note(anilist_has_token, anilist_enabled, anilist_has_id))
+    mal_checked = 'checked' if mal_available else ''
+    anilist_checked = 'checked' if anilist_available else ''
+    mal_disabled = '' if mal_available else 'disabled'
+    anilist_disabled = '' if anilist_available else 'disabled'
+    mal_state = '' if mal_available else 'is-disabled'
+    anilist_state = '' if anilist_available else 'is-disabled'
 
     status_meta = {
-        "watching": {
-            "hint": "Currently active",
-            "icon": "▶",
-            "tone": "cyan",
-        },
-        "plan_to_watch": {
-            "hint": "Queue for later",
-            "icon": "＋",
-            "tone": "violet",
-        },
-        "completed": {
-            "hint": "Finished",
-            "icon": "✓",
-            "tone": "green",
-        },
-        "on_hold": {
-            "hint": "Paused",
-            "icon": "Ⅱ",
-            "tone": "amber",
-        },
-        "dropped": {
-            "hint": "Stopped",
-            "icon": "×",
-            "tone": "red",
-        },
+        'watching': {'hint': 'Currently active', 'icon': '▶', 'tone': 'cyan'},
+        'plan_to_watch': {'hint': 'Queue for later', 'icon': '+', 'tone': 'violet'},
+        'completed': {'hint': 'Finished', 'icon': '✓', 'tone': 'green'},
+        'on_hold': {'hint': 'Paused', 'icon': 'Ⅱ', 'tone': 'amber'},
+        'dropped': {'hint': 'Stopped', 'icon': '×', 'tone': 'red'},
     }
 
-    status_cards = ""
+    status_cards = ''
     for key, data in STATUS_MAP.items():
         meta = status_meta.get(key, {})
-        checked = "checked" if key == "watching" else ""
-        status_cards += f"""
-            <label class="status-card tone-{html.escape(meta.get("tone", "cyan"))}">
-                <input class="status-input" type="radio" name="status" value="{html.escape(key, quote=True)}" {checked}>
-                <span class="status-shell">
-                    <span class="status-icon" aria-hidden="true">{html.escape(meta.get("icon", "•"))}</span>
-                    <span>
-                        <strong>{html.escape(data["label"])}</strong>
-                        <small>{html.escape(meta.get("hint", ""))}</small>
-                    </span>
-                </span>
-            </label>
-        """
+        safe_key = html.escape(key, quote=True)
+        safe_label = html.escape(data['label'], quote=True)
+        safe_hint = html.escape(meta.get('hint', ''), quote=True)
+        safe_icon = html.escape(meta.get('icon', '•'), quote=True)
+        safe_tone = html.escape(meta.get('tone', 'cyan'), quote=True)
+        checked = 'checked' if key == 'watching' else ''
+        status_cards += f'''
+                        <label class="status-card status-card--{safe_tone}">
+                            <input type="radio" name="status" value="{safe_key}" {checked} />
+                            <span class="status-card__glow" aria-hidden="true"></span>
+                            <span class="status-card__icon">{safe_icon}</span>
+                            <span>
+                                <strong>{safe_label}</strong>
+                                <small>{safe_hint}</small>
+                            </span>
+                        </label>'''
 
-    score_controls = """
-        <label class="score-clear">
-            <input class="score-input" type="radio" name="score" value="" checked>
-            <span>No score</span>
-        </label>
-    """
-    for value in range(0, 11):
-        score_controls += f"""
-            <label class="score-choice" aria-label="Score {value} out of 10">
-                <input class="score-input" type="radio" name="score" value="{value}">
-                <span class="score-mark">{value}</span>
-            </label>
-        """
+    score_controls = '''
+                        <label class="score-pill">
+                            <input type="radio" name="score" value="" checked />
+                            <span>No score</span>
+                        </label>'''
+    for value in range(1, 11):
+        score_controls += f'''
+                        <label class="score-pill">
+                            <input type="radio" name="score" value="{value}" />
+                            <span>{value}</span>
+                        </label>'''
 
-    return f"""
-<!doctype html>
+    page = """<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
     <title>AniSync · Manage Progress</title>
     <style>
-        :root {{
-            --bg: #070914;
-            --bg-2: #0b1020;
-            --surface: rgba(15, 22, 40, .86);
-            --surface-2: rgba(255, 255, 255, .055);
-            --surface-3: rgba(255, 255, 255, .085);
-            --line: rgba(255, 255, 255, .12);
-            --line-strong: rgba(255, 255, 255, .22);
-            --text: #f5f7fb;
-            --muted: #a3adbf;
-            --muted-2: #687386;
-            --cyan: #30dfff;
-            --cyan-dark: #0898bc;
-            --violet: #a78bfa;
-            --amber: #ffc46b;
-            --green: #54f0a7;
-            --red: #ff6b8a;
-            --shadow: 0 24px 80px rgba(0, 0, 0, .48);
-            --radius: 28px;
-            --radius-sm: 18px;
-        }}
+        :root {
+            --bg: #070912;
+            --bg-2: #0d1020;
+            --panel: rgba(17, 22, 42, .82);
+            --panel-strong: rgba(21, 27, 52, .94);
+            --line: rgba(255,255,255,.11);
+            --line-strong: rgba(255,255,255,.18);
+            --text: #f6f7fb;
+            --muted: #9ca6bd;
+            --muted-2: #6f7a92;
+            --cyan: #52e8ff;
+            --violet: #9c7cff;
+            --pink: #ff5fb7;
+            --green: #7af0b4;
+            --amber: #ffd166;
+            --red: #ff6b7a;
+            --shadow: 0 24px 80px rgba(0,0,0,.45);
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 18px;
+            --radius-sm: 13px;
+            --tap: 48px;
+        }
 
-        * {{
-            box-sizing: border-box;
-        }}
+        * { box-sizing: border-box; }
 
-        html {{
+        html {
             min-height: 100%;
             background: var(--bg);
-        }}
+        }
 
-        body {{
-            margin: 0;
+        body {
             min-height: 100vh;
+            margin: 0;
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             color: var(--text);
             background:
-                radial-gradient(circle at 12% 8%, rgba(48, 223, 255, .18), transparent 32%),
-                radial-gradient(circle at 82% 18%, rgba(167, 139, 250, .17), transparent 30%),
-                radial-gradient(circle at 52% 96%, rgba(255, 196, 107, .09), transparent 34%),
-                linear-gradient(180deg, #050712 0%, #0b1020 48%, #070914 100%);
+                radial-gradient(circle at 12% 8%, rgba(82,232,255,.18), transparent 31rem),
+                radial-gradient(circle at 86% 6%, rgba(156,124,255,.22), transparent 29rem),
+                radial-gradient(circle at 70% 92%, rgba(255,95,183,.12), transparent 28rem),
+                linear-gradient(135deg, #070912 0%, #0a0d19 48%, #101429 100%);
             overflow-x: hidden;
-        }}
+        }
 
-        body::before {{
+        body::before {
             content: "";
             position: fixed;
-            inset: -20%;
-            pointer-events: none;
-            background:
-                linear-gradient(115deg, transparent 0 42%, rgba(48, 223, 255, .055) 42% 43%, transparent 43% 100%),
-                linear-gradient(245deg, transparent 0 58%, rgba(167, 139, 250, .05) 58% 59%, transparent 59% 100%);
-            mask-image: radial-gradient(circle at center, black, transparent 72%);
-            animation: drift 18s ease-in-out infinite alternate;
-        }}
-
-        @keyframes drift {{
-            from {{
-                transform: translate3d(-1%, -1%, 0) rotate(-1deg);
-            }}
-            to {{
-                transform: translate3d(1%, 1%, 0) rotate(1deg);
-            }}
-        }}
-
-        a {{
-            color: inherit;
-        }}
-
-        button,
-        input,
-        summary {{
-            font: inherit;
-        }}
-
-        button {{
-            -webkit-tap-highlight-color: transparent;
-        }}
-
-        .page {{
-            position: relative;
-            width: min(100%, 1080px);
-            margin: 0 auto;
-            padding: 22px;
-        }}
-
-        .topbar {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 18px;
-            margin: 8px 0 22px;
-        }}
-
-        .brand {{
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 0;
-        }}
-
-        .brand-mark {{
-            width: 42px;
-            height: 42px;
-            display: grid;
-            place-items: center;
-            border-radius: 14px;
-            background:
-                linear-gradient(135deg, rgba(48, 223, 255, .28), rgba(167, 139, 250, .18)),
-                rgba(255, 255, 255, .06);
-            border: 1px solid rgba(255, 255, 255, .16);
-            box-shadow: 0 0 36px rgba(48, 223, 255, .12);
-            font-weight: 950;
-            letter-spacing: -.06em;
-        }}
-
-        .brand h1 {{
-            margin: 0;
-            font-size: 18px;
-            letter-spacing: -.03em;
-        }}
-
-        .brand p {{
-            margin: 2px 0 0;
-            color: var(--muted);
-            font-size: 13px;
-        }}
-
-        .chips {{
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }}
-
-        .chip {{
-            padding: 7px 10px;
-            border: 1px solid var(--line);
-            border-radius: 999px;
-            color: #dbe4f4;
-            background: rgba(255, 255, 255, .045);
-            font-size: 12px;
-            font-weight: 750;
-        }}
-
-        .hero {{
-            position: relative;
-            border-radius: var(--radius);
-            background:
-                linear-gradient(145deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .035)),
-                var(--surface);
-            border: 1px solid rgba(255, 255, 255, .14);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }}
-
-        .hero::before {{
-            content: "";
-            position: absolute;
-            width: 360px;
-            height: 360px;
-            right: -170px;
-            top: -190px;
-            border-radius: 50%;
-            border: 1px solid rgba(48, 223, 255, .2);
-            box-shadow:
-                inset 0 0 48px rgba(48, 223, 255, .05),
-                0 0 92px rgba(167, 139, 250, .09);
-            animation: orbit 12s linear infinite;
-        }}
-
-        .hero::after {{
-            content: "";
-            position: absolute;
             inset: 0;
             pointer-events: none;
             background:
-                linear-gradient(90deg, rgba(255, 255, 255, .08), transparent 18% 82%, rgba(255, 255, 255, .035)),
-                radial-gradient(circle at 78% 8%, rgba(48, 223, 255, .15), transparent 28%);
-        }}
+                linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.024) 1px, transparent 1px);
+            background-size: 42px 42px;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,.75), transparent 78%);
+        }
 
-        @keyframes orbit {{
-            to {{
-                transform: rotate(360deg);
-            }}
-        }}
+        button, input { font: inherit; }
 
-        .hero-inner {{
+        .shell {
+            width: min(1120px, 100%);
+            margin: 0 auto;
+            padding: 18px 14px max(26px, env(safe-area-inset-bottom));
             position: relative;
-            z-index: 1;
-            padding: clamp(22px, 5vw, 48px);
-        }}
+        }
 
-        .hero-head {{
-            display: grid;
-            grid-template-columns: 1.2fr .8fr;
-            gap: 26px;
-            align-items: start;
-            margin-bottom: 28px;
-        }}
-
-        .eyebrow {{
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            width: fit-content;
-            margin-bottom: 14px;
-            padding: 7px 10px;
-            border-radius: 999px;
-            background: rgba(48, 223, 255, .09);
-            border: 1px solid rgba(48, 223, 255, .22);
-            color: #bff6ff;
-            font-size: 12px;
-            font-weight: 850;
-            text-transform: uppercase;
-            letter-spacing: .09em;
-        }}
-
-        .eyebrow::before {{
-            content: "";
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--cyan);
-            box-shadow: 0 0 18px var(--cyan);
-        }}
-
-        .hero-title {{
-            margin: 0;
-            max-width: 720px;
-            font-size: clamp(36px, 7vw, 74px);
-            line-height: .92;
-            letter-spacing: -.07em;
-            font-weight: 950;
-        }}
-
-        .hero-copy {{
-            margin: 16px 0 0;
-            max-width: 620px;
-            color: var(--muted);
-            font-size: 15px;
-            line-height: 1.65;
-        }}
-
-        .target-card {{
-            align-self: stretch;
-            padding: 18px;
-            border-radius: 22px;
-            background: rgba(0, 0, 0, .22);
-            border: 1px solid var(--line);
-        }}
-
-        .target-label {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: .1em;
-        }}
-
-        .target-id {{
-            margin-top: 14px;
-            padding: 14px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, .045);
-            border: 1px solid rgba(255, 255, 255, .08);
-            color: #f7fbff;
-            font-size: 14px;
-            line-height: 1.45;
-            word-break: break-all;
-        }}
-
-        .target-meta {{
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 12px;
-        }}
-
-        .mini {{
-            padding: 7px 9px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, .06);
-            color: #c8d2e3;
-            font-size: 12px;
-            font-weight: 750;
-        }}
-
-        .flow {{
-            display: grid;
-            grid-template-columns: 1fr auto 1fr auto 1fr;
-            gap: 10px;
-            align-items: center;
-            margin: 8px 0 28px;
-            color: #dce8ff;
-        }}
-
-        .flow-node {{
-            min-width: 0;
-            padding: 12px 14px;
-            border-radius: 16px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .045);
-            text-align: center;
-            font-size: 13px;
-            font-weight: 850;
-        }}
-
-        .flow-arrow {{
-            width: 34px;
-            height: 1px;
-            background: linear-gradient(90deg, var(--cyan), var(--violet));
+        .hero {
             position: relative;
-            opacity: .85;
-        }}
-
-        .flow-arrow::after {{
-            content: "";
-            position: absolute;
-            right: -1px;
-            top: 50%;
-            width: 7px;
-            height: 7px;
-            border-top: 1px solid var(--violet);
-            border-right: 1px solid var(--violet);
-            transform: translateY(-50%) rotate(45deg);
-        }}
-
-        .form-grid {{
-            display: grid;
-            gap: 18px;
-        }}
-
-        .panel {{
-            padding: 20px;
-            border-radius: 24px;
+            overflow: hidden;
             border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .045);
-        }}
-
-        .panel-head {{
-            display: flex;
-            align-items: end;
-            justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 14px;
-        }}
-
-        .step {{
-            margin: 0;
-            color: var(--cyan);
-            font-size: 12px;
-            font-weight: 950;
-            letter-spacing: .11em;
-            text-transform: uppercase;
-        }}
-
-        .panel-title {{
-            margin: 4px 0 0;
-            font-size: 18px;
-            letter-spacing: -.03em;
-        }}
-
-        .panel-hint {{
-            margin: 0;
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.45;
-        }}
-
-        .providers {{
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }}
-
-        .provider-card {{
-            display: block;
-            cursor: pointer;
-        }}
-
-        .provider-input {{
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }}
-
-        .provider-shell {{
-            display: flex;
-            justify-content: space-between;
-            gap: 14px;
-            min-height: 92px;
-            padding: 16px;
-            border-radius: 20px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .045);
-            transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
-        }}
-
-        .provider-card:not(.is-disabled):hover .provider-shell {{
-            transform: translateY(-1px);
-            border-color: rgba(48, 223, 255, .34);
-            background: rgba(255, 255, 255, .07);
-        }}
-
-        .provider-input:focus-visible + .provider-shell,
-        .status-input:focus-visible + .status-shell,
-        .score-input:focus-visible + .score-mark,
-        .score-clear .score-input:focus-visible + span,
-        .round-btn:focus-visible,
-        .sync-button:focus-visible,
-        summary:focus-visible {{
-            outline: 3px solid rgba(48, 223, 255, .36);
-            outline-offset: 3px;
-        }}
-
-        .provider-input:checked + .provider-shell {{
-            border-color: rgba(48, 223, 255, .58);
+            border-radius: var(--radius-xl);
             background:
-                linear-gradient(135deg, rgba(48, 223, 255, .14), rgba(167, 139, 250, .08)),
-                rgba(255, 255, 255, .055);
-            box-shadow: 0 0 42px rgba(48, 223, 255, .08);
-        }}
+                linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.03)),
+                rgba(14, 18, 34, .78);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            isolation: isolate;
+        }
 
-        .provider-input:disabled + .provider-shell {{
-            opacity: .46;
-            cursor: not-allowed;
-            filter: grayscale(.2);
-        }}
-
-        .provider-name {{
-            display: block;
-            font-weight: 900;
-            letter-spacing: -.02em;
-        }}
-
-        .provider-note {{
-            display: block;
-            margin-top: 7px;
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 750;
-        }}
-
-        .provider-toggle {{
-            width: 42px;
-            height: 24px;
-            flex: 0 0 auto;
-            border-radius: 999px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .08);
-            position: relative;
-            margin-top: 1px;
-        }}
-
-        .provider-toggle::after {{
+        .hero::before {
             content: "";
             position: absolute;
-            left: 3px;
-            top: 3px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: var(--muted);
-            transition: transform .16s ease, background .16s ease;
-        }}
+            inset: -1px;
+            z-index: -2;
+            background:
+                linear-gradient(120deg, rgba(82,232,255,.22), transparent 28%, rgba(156,124,255,.18) 62%, rgba(255,95,183,.18));
+        }
 
-        .provider-input:checked + .provider-shell .provider-toggle::after {{
-            transform: translateX(18px);
-            background: var(--cyan);
-            box-shadow: 0 0 18px rgba(48, 223, 255, .7);
-        }}
-
-        .status-grid {{
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 10px;
-        }}
-
-        .status-card {{
-            display: block;
-            min-width: 0;
-            cursor: pointer;
-        }}
-
-        .status-input {{
+        .hero::after {
+            content: "";
             position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }}
+            right: -90px;
+            top: -120px;
+            width: 270px;
+            height: 270px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(82,232,255,.32), transparent 68%);
+            filter: blur(8px);
+            z-index: -1;
+        }
 
-        .status-shell {{
-            display: grid;
-            gap: 10px;
-            min-height: 120px;
-            padding: 14px;
-            border-radius: 20px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .04);
-            transition: transform .16s ease, border-color .16s ease, background .16s ease;
-        }}
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
 
-        .status-card:hover .status-shell {{
-            transform: translateY(-1px);
-            background: rgba(255, 255, 255, .07);
-        }}
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
 
-        .status-icon {{
-            width: 34px;
-            height: 34px;
+        .brand-mark {
+            width: 44px;
+            height: 44px;
             display: grid;
             place-items: center;
-            border-radius: 13px;
-            background: rgba(255, 255, 255, .08);
-            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 16px;
+            background:
+                linear-gradient(135deg, rgba(82,232,255,.95), rgba(156,124,255,.88) 54%, rgba(255,95,183,.9));
+            color: #07101c;
             font-weight: 950;
-        }}
+            letter-spacing: -.08em;
+            box-shadow: 0 12px 40px rgba(82,232,255,.20);
+        }
 
-        .status-shell strong {{
+        .brand-copy strong {
             display: block;
-            font-size: 14px;
-            line-height: 1.15;
-            letter-spacing: -.02em;
-        }}
+            font-size: 1rem;
+            letter-spacing: -.03em;
+        }
 
-        .status-shell small {{
+        .brand-copy span {
+            display: block;
+            color: var(--muted);
+            font-size: .78rem;
+            margin-top: 1px;
+        }
+
+        .chips {
+            display: none;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .chip {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 8px 11px;
+            color: rgba(246,247,251,.86);
+            background: rgba(255,255,255,.055);
+            font-size: .75rem;
+            font-weight: 750;
+        }
+
+        .hero-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .headline {
+            margin: 0;
+            font-size: clamp(2.35rem, 13vw, 5.8rem);
+            line-height: .88;
+            letter-spacing: -.08em;
+            max-width: 780px;
+        }
+
+        .headline span {
+            display: block;
+            background: linear-gradient(90deg, var(--text), #e9fbff 40%, #b9b0ff 72%, #ffb8df);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .lede {
+            margin: 16px 0 0;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.65;
+            max-width: 650px;
+        }
+
+        .target-card {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            background: rgba(5, 8, 18, .45);
+            padding: 16px;
+        }
+
+        .eyebrow {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 9px;
+            color: var(--cyan);
+            font-size: .72rem;
+            font-weight: 850;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: currentColor;
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .target-id {
+            margin: 0;
+            overflow-wrap: anywhere;
+            font-size: 1.02rem;
+            font-weight: 850;
+            letter-spacing: -.03em;
+        }
+
+        .target-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 32px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            padding: 7px 10px;
+            background: rgba(255,255,255,.05);
+            color: rgba(246,247,251,.82);
+            font-size: .78rem;
+            font-weight: 750;
+        }
+
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .flow-step {
+            min-height: 58px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,.045);
+            padding: 10px;
+        }
+
+        .flow-step small {
+            display: block;
+            color: var(--muted-2);
+            font-size: .62rem;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: .11em;
+        }
+
+        .flow-step strong {
             display: block;
             margin-top: 5px;
-            color: var(--muted);
-            font-size: 11px;
-            line-height: 1.25;
-        }}
+            font-size: .78rem;
+            letter-spacing: -.02em;
+        }
 
-        .status-input:checked + .status-shell {{
-            background:
-                linear-gradient(135deg, rgba(48, 223, 255, .14), rgba(255, 255, 255, .05)),
-                rgba(255, 255, 255, .055);
-            border-color: rgba(48, 223, 255, .55);
-        }}
-
-        .tone-violet .status-input:checked + .status-shell {{
-            border-color: rgba(167, 139, 250, .65);
-            background: linear-gradient(135deg, rgba(167, 139, 250, .16), rgba(255, 255, 255, .05));
-        }}
-
-        .tone-green .status-input:checked + .status-shell {{
-            border-color: rgba(84, 240, 167, .62);
-            background: linear-gradient(135deg, rgba(84, 240, 167, .14), rgba(255, 255, 255, .05));
-        }}
-
-        .tone-amber .status-input:checked + .status-shell {{
-            border-color: rgba(255, 196, 107, .62);
-            background: linear-gradient(135deg, rgba(255, 196, 107, .14), rgba(255, 255, 255, .05));
-        }}
-
-        .tone-red .status-input:checked + .status-shell {{
-            border-color: rgba(255, 107, 138, .62);
-            background: linear-gradient(135deg, rgba(255, 107, 138, .14), rgba(255, 255, 255, .05));
-        }}
-
-        .control-row {{
-            display: grid;
-            grid-template-columns: minmax(0, .72fr) minmax(0, 1fr);
-            gap: 14px;
-            align-items: stretch;
-        }}
-
-        .progress-box {{
-            display: grid;
-            grid-template-columns: 52px minmax(84px, 1fr) 52px;
-            gap: 10px;
-            align-items: center;
-            padding: 10px;
-            border-radius: 22px;
+        .panel {
+            margin-top: 14px;
             border: 1px solid var(--line);
-            background: rgba(0, 0, 0, .18);
-        }}
+            border-radius: var(--radius-xl);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            backdrop-filter: blur(22px);
+        }
 
-        .round-btn {{
-            width: 52px;
-            height: 52px;
-            border: 0;
-            border-radius: 17px;
-            color: var(--text);
-            background: rgba(255, 255, 255, .08);
-            cursor: pointer;
-            font-size: 24px;
-            font-weight: 900;
-            transition: transform .12s ease, background .12s ease;
-        }}
+        .panel-inner {
+            padding: 18px;
+        }
 
-        .round-btn:hover {{
-            background: rgba(255, 255, 255, .13);
-        }}
-
-        .round-btn:active {{
-            transform: scale(.94);
-        }}
-
-        .progress-num {{
-            width: 100%;
-            min-width: 0;
-            height: 52px;
-            border: 0;
-            border-radius: 17px;
-            outline: none;
-            color: var(--text);
-            background: rgba(255, 255, 255, .065);
-            text-align: center;
-            font-size: 28px;
-            font-weight: 950;
-            letter-spacing: -.04em;
-            appearance: textfield;
-        }}
-
-        .progress-num.pulse {{
-            animation: pulse .2s ease;
-        }}
-
-        @keyframes pulse {{
-            50% {{
-                transform: scale(1.035);
-            }}
-        }}
-
-        .progress-num::-webkit-outer-spin-button,
-        .progress-num::-webkit-inner-spin-button {{
-            -webkit-appearance: none;
-            margin: 0;
-        }}
-
-        .score-wrap {{
+        .sync-form {
             display: grid;
-            gap: 12px;
-        }}
+            gap: 18px;
+        }
 
-        .score-top {{
+        .section {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            background: rgba(255,255,255,.045);
+            padding: 15px;
+        }
+
+        .section-head {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
-            gap: 14px;
-        }}
+            gap: 12px;
+            margin-bottom: 13px;
+        }
 
-        .score-display {{
-            color: var(--cyan);
-            font-size: 24px;
-            font-weight: 950;
+        .section-kicker {
+            color: var(--muted-2);
+            font-size: .69rem;
+            font-weight: 900;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+        }
+
+        .section h2 {
+            margin: 4px 0 0;
+            font-size: 1.04rem;
             letter-spacing: -.04em;
-            white-space: nowrap;
-        }}
+        }
 
-        .score-display small {{
+        .section p {
+            margin: 5px 0 0;
             color: var(--muted);
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 0;
-        }}
+            font-size: .86rem;
+            line-height: 1.5;
+        }
 
-        .score-list {{
+        .step-number {
+            flex: 0 0 auto;
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--line-strong);
+            border-radius: 13px;
+            color: var(--cyan);
+            background: rgba(82,232,255,.08);
+            font-weight: 950;
+        }
+
+        .provider-grid,
+        .status-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .provider-card,
+        .status-card {
+            position: relative;
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
             align-items: center;
-        }}
-
-        .score-choice,
-        .score-clear {{
-            display: inline-flex;
+            gap: 12px;
+            min-height: 66px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            background: rgba(7, 10, 22, .52);
+            padding: 12px;
             cursor: pointer;
-        }}
+            transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+            overflow: hidden;
+        }
 
-        .score-input {{
+        .provider-card:active,
+        .status-card:active,
+        .score-pill:active,
+        .stepper button:active,
+        .submit-button:active {
+            transform: translateY(1px) scale(.995);
+        }
+
+        .provider-card:hover,
+        .status-card:hover {
+            border-color: rgba(82,232,255,.38);
+            background: rgba(255,255,255,.07);
+        }
+
+        .provider-card input,
+        .status-card input,
+        .score-pill input {
             position: absolute;
             opacity: 0;
             pointer-events: none;
-        }}
+        }
 
-        .score-mark,
-        .score-clear span {{
-            min-width: 38px;
-            height: 38px;
+        .provider-check,
+        .status-card__icon {
+            flex: 0 0 auto;
             display: grid;
             place-items: center;
-            border: 1px solid var(--line);
-            border-radius: 13px;
-            background: rgba(255, 255, 255, .045);
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            border: 1px solid var(--line-strong);
             color: var(--muted);
-            font-size: 13px;
-            font-weight: 900;
-            transition: transform .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
-        }}
+            background: rgba(255,255,255,.045);
+            font-weight: 950;
+        }
 
-        .score-clear span {{
-            width: auto;
-            padding: 0 12px;
-        }}
-
-        .score-choice:hover .score-mark,
-        .score-clear:hover span {{
-            transform: translateY(-1px);
-            background: rgba(255, 255, 255, .08);
-            color: var(--text);
-        }}
-
-        .score-choice.is-filled .score-mark {{
+        .provider-card input:checked ~ .provider-check,
+        .status-card input:checked ~ .status-card__icon {
             color: #07101c;
-            border-color: rgba(48, 223, 255, .72);
+            border-color: transparent;
             background: linear-gradient(135deg, var(--cyan), var(--violet));
-        }}
+            box-shadow: 0 0 28px rgba(82,232,255,.18);
+        }
 
-        .score-choice.is-selected .score-mark,
-        .score-clear .score-input:checked + span {{
-            border-color: rgba(255, 196, 107, .72);
-            box-shadow: 0 0 0 3px rgba(255, 196, 107, .1);
-        }}
+        .provider-card input:checked ~ div strong,
+        .status-card input:checked ~ span strong {
+            color: var(--text);
+        }
 
-        .submit-panel {{
+        .provider-card:has(input:checked),
+        .status-card:has(input:checked) {
+            border-color: rgba(82,232,255,.55);
+            box-shadow: inset 0 0 0 1px rgba(82,232,255,.13), 0 18px 42px rgba(0,0,0,.22);
+        }
+
+        .provider-card strong,
+        .status-card strong {
+            display: block;
+            color: rgba(246,247,251,.88);
+            font-size: .94rem;
+            letter-spacing: -.025em;
+        }
+
+        .provider-card small,
+        .status-card small {
+            display: block;
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: .78rem;
+        }
+
+        .provider-card.is-disabled {
+            cursor: not-allowed;
+            opacity: .48;
+        }
+
+        .status-card__glow {
+            position: absolute;
+            inset: auto 16px -32px auto;
+            width: 90px;
+            height: 90px;
+            border-radius: 999px;
+            opacity: .24;
+            filter: blur(22px);
+            background: var(--cyan);
+            pointer-events: none;
+        }
+
+        .status-card--violet .status-card__glow { background: var(--violet); }
+        .status-card--green .status-card__glow { background: var(--green); }
+        .status-card--amber .status-card__glow { background: var(--amber); }
+        .status-card--red .status-card__glow { background: var(--red); }
+
+        .control-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .field-label {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 14px;
-            padding: 18px;
-            border-radius: 24px;
-            border: 1px solid rgba(48, 223, 255, .2);
-            background:
-                linear-gradient(135deg, rgba(48, 223, 255, .08), rgba(167, 139, 250, .07)),
-                rgba(255, 255, 255, .04);
-        }}
-
-        .submit-copy strong {{
-            display: block;
-            font-size: 14px;
-        }}
-
-        .submit-copy span {{
-            display: block;
-            margin-top: 4px;
+            gap: 12px;
+            margin-bottom: 9px;
             color: var(--muted);
-            font-size: 13px;
-        }}
-
-        .sync-button {{
-            min-width: 178px;
-            border: 0;
-            border-radius: 18px;
-            padding: 15px 20px;
-            color: #04101c;
-            background: linear-gradient(135deg, var(--cyan), #79f1ff 42%, var(--violet));
-            font-size: 15px;
-            font-weight: 950;
-            letter-spacing: -.02em;
-            cursor: pointer;
-            box-shadow: 0 16px 34px rgba(48, 223, 255, .18);
-            transition: transform .14s ease, filter .14s ease, opacity .14s ease;
-        }}
-
-        .sync-button:hover {{
-            transform: translateY(-1px);
-            filter: brightness(1.05);
-        }}
-
-        .sync-button:active {{
-            transform: translateY(0) scale(.98);
-        }}
-
-        .sync-button:disabled {{
-            cursor: wait;
-            opacity: .72;
-        }}
-
-        .result {{
-            margin-top: 14px;
-            padding: 13px 15px;
-            border-radius: 16px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .045);
-            color: var(--muted);
-            font-size: 13px;
+            font-size: .78rem;
             font-weight: 850;
-        }}
-
-        .result[hidden] {{
-            display: none;
-        }}
-
-        .result.is-success {{
-            border-color: rgba(84, 240, 167, .35);
-            background: rgba(84, 240, 167, .08);
-            color: #b8ffd9;
-        }}
-
-        .result.is-error {{
-            border-color: rgba(255, 107, 138, .38);
-            background: rgba(255, 107, 138, .08);
-            color: #ffc2ce;
-        }}
-
-        details {{
-            margin-top: 16px;
-            border-radius: 18px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, .035);
-            overflow: hidden;
-        }}
-
-        summary {{
-            cursor: pointer;
-            padding: 14px 16px;
-            color: #c8d2e3;
-            font-size: 13px;
-            font-weight: 850;
-        }}
-
-        .details-grid {{
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            margin: 0;
-            padding: 0 16px 16px;
-        }}
-
-        .details-grid div {{
-            min-width: 0;
-            padding: 12px;
-            border-radius: 14px;
-            background: rgba(0, 0, 0, .18);
-            border: 1px solid rgba(255, 255, 255, .065);
-        }}
-
-        .details-grid dt {{
-            margin-bottom: 6px;
-            color: var(--muted-2);
-            font-size: 11px;
-            font-weight: 950;
+            letter-spacing: .08em;
             text-transform: uppercase;
-            letter-spacing: .1em;
-        }}
+        }
 
-        .details-grid dd {{
-            margin: 0;
-            color: #d9e3f4;
-            font-size: 13px;
-            line-height: 1.35;
-            word-break: break-all;
-        }}
+        .progress-readout,
+        .score-readout {
+            color: var(--text);
+            font-size: .9rem;
+            letter-spacing: -.02em;
+            text-transform: none;
+        }
 
-        .visually-hidden {{
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
+        .stepper {
+            display: grid;
+            grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
+            gap: 9px;
+        }
+
+        .stepper button,
+        .stepper input {
+            min-height: var(--tap);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            background: rgba(7, 10, 22, .62);
+            outline: none;
+        }
+
+        .stepper button {
+            cursor: pointer;
+            font-size: 1.3rem;
+            font-weight: 900;
+        }
+
+        .stepper button:hover {
+            border-color: rgba(82,232,255,.45);
+            background: rgba(82,232,255,.08);
+        }
+
+        .stepper input {
+            width: 100%;
+            text-align: center;
+            font-weight: 950;
+            font-size: 1.25rem;
+            letter-spacing: -.04em;
+        }
+
+        .stepper input:focus,
+        .score-pill:has(input:focus-visible),
+        .provider-card:has(input:focus-visible),
+        .status-card:has(input:focus-visible) {
+            border-color: rgba(82,232,255,.8);
+            box-shadow: 0 0 0 4px rgba(82,232,255,.12);
+        }
+
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .score-pill {
+            position: relative;
+            min-height: 44px;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: var(--muted);
+            background: rgba(7, 10, 22, .54);
+            cursor: pointer;
+            transition: border-color .18s ease, background .18s ease, color .18s ease, transform .18s ease;
+        }
+
+        .score-pill:first-child {
+            grid-column: span 2;
+        }
+
+        .score-pill span {
+            font-size: .84rem;
+            font-weight: 850;
+        }
+
+        .score-pill:has(input:checked) {
+            color: #07101c;
+            border-color: transparent;
+            background: linear-gradient(135deg, var(--amber), var(--pink));
+            box-shadow: 0 12px 36px rgba(255,209,102,.16);
+        }
+
+        .submit-zone {
+            display: grid;
+            gap: 12px;
+        }
+
+        .submit-button {
+            width: 100%;
+            min-height: 58px;
             border: 0;
-        }}
+            border-radius: 20px;
+            color: #050711;
+            background:
+                linear-gradient(135deg, var(--cyan), var(--violet) 58%, var(--pink));
+            font-weight: 950;
+            letter-spacing: -.035em;
+            cursor: pointer;
+            box-shadow: 0 22px 55px rgba(82,232,255,.22), inset 0 1px 0 rgba(255,255,255,.45);
+            transition: transform .18s ease, filter .18s ease;
+        }
 
-        @media (max-width: 820px) {{
-            .page {{
-                padding: 14px;
-            }}
+        .submit-button:hover { filter: brightness(1.07); }
+        .submit-button:disabled { cursor: progress; filter: grayscale(.25) brightness(.75); }
 
-            .topbar {{
-                align-items: flex-start;
-                flex-direction: column;
-            }}
+        .status-message {
+            min-height: 44px;
+            display: none;
+            align-items: center;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--line);
+            padding: 11px 13px;
+            background: rgba(255,255,255,.045);
+            color: var(--muted);
+            font-size: .88rem;
+            line-height: 1.35;
+        }
 
-            .chips {{
-                justify-content: flex-start;
-            }}
+        .status-message.is-visible { display: flex; }
+        .status-message.is-success { border-color: rgba(122,240,180,.38); color: var(--green); background: rgba(122,240,180,.08); }
+        .status-message.is-error { border-color: rgba(255,107,122,.38); color: var(--red); background: rgba(255,107,122,.08); }
 
-            .hero-head,
-            .control-row {{
-                grid-template-columns: 1fr;
-            }}
+        details {
+            border-top: 1px solid var(--line);
+            background: rgba(0,0,0,.13);
+        }
 
-            .flow {{
-                grid-template-columns: 1fr;
-            }}
+        summary {
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            padding: 0 18px;
+            color: var(--muted);
+            font-size: .82rem;
+            font-weight: 850;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
 
-            .flow-arrow {{
-                width: 1px;
-                height: 24px;
-                margin: 0 auto;
-                background: linear-gradient(180deg, var(--cyan), var(--violet));
-            }}
+        .details-grid {
+            display: grid;
+            gap: 9px;
+            padding: 0 18px 18px;
+        }
 
-            .flow-arrow::after {{
-                right: auto;
-                left: 50%;
-                top: auto;
-                bottom: -2px;
-                transform: translateX(-50%) rotate(135deg);
-            }}
+        .detail-row {
+            display: grid;
+            grid-template-columns: 88px minmax(0, 1fr);
+            gap: 12px;
+            align-items: center;
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            background: rgba(255,255,255,.035);
+        }
 
-            .providers,
-            .details-grid {{
-                grid-template-columns: 1fr;
-            }}
+        .detail-row dt {
+            color: var(--muted-2);
+            font-size: .7rem;
+            font-weight: 900;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
 
-            .status-grid {{
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }}
+        .detail-row dd {
+            margin: 0;
+            overflow-wrap: anywhere;
+            color: rgba(246,247,251,.88);
+            font-size: .84rem;
+            font-weight: 750;
+        }
 
-            .submit-panel {{
-                align-items: stretch;
-                flex-direction: column;
-            }}
+        @media (min-width: 680px) {
+            .shell { padding: 28px; }
+            .hero { padding: 28px; }
+            .chips { display: flex; }
+            .hero-grid { grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); align-items: end; }
+            .panel-inner { padding: 22px; }
+            .provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .status-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+            .status-card { align-items: flex-start; min-height: 132px; flex-direction: column; justify-content: space-between; }
+            .control-grid { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); align-items: start; }
+            .score-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+            .submit-zone { grid-template-columns: minmax(0, 1fr) 220px; align-items: center; }
+            .submit-button { order: 2; }
+            .status-message { order: 1; }
+        }
 
-            .sync-button {{
-                width: 100%;
-            }}
-        }}
+        @media (min-width: 980px) {
+            .shell { padding-top: 36px; }
+            .panel { margin-top: -18px; position: relative; z-index: 2; }
+            .sync-form { grid-template-columns: .72fr 1.28fr; align-items: start; }
+            .section--providers { position: sticky; top: 18px; }
+            .section--status,
+            .section--controls,
+            .submit-zone { grid-column: 2; }
+        }
 
-        @media (max-width: 420px) {{
-            .page {{
-                padding: 10px;
-            }}
-
-            .hero-inner {{
-                padding: 18px;
-            }}
-
-            .hero-title {{
-                font-size: 38px;
-            }}
-
-            .panel {{
-                padding: 15px;
-            }}
-
-            .status-grid {{
-                gap: 8px;
-            }}
-
-            .status-shell {{
-                min-height: 110px;
-                padding: 12px;
-            }}
-
-            .progress-box {{
-                grid-template-columns: 48px minmax(72px, 1fr) 48px;
-            }}
-
-            .round-btn {{
-                width: 48px;
-                height: 48px;
-            }}
-
-            .progress-num {{
-                height: 48px;
-            }}
-        }}
-
-        @media (prefers-reduced-motion: reduce) {{
-            *,
-            *::before,
-            *::after {{
-                animation-duration: .01ms !important;
-                animation-iteration-count: 1 !important;
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
                 scroll-behavior: auto !important;
-                transition-duration: .01ms !important;
-            }}
-        }}
+                transition: none !important;
+            }
+        }
     </style>
 </head>
 <body>
-    <main class="page">
-        <header class="topbar" aria-label="AniSync header">
-            <div class="brand">
-                <div class="brand-mark" aria-hidden="true">AS</div>
-                <div>
-                    <h1>AniSync</h1>
-                    <p>Update anime progress without leaving the Stremio flow.</p>
-                </div>
-            </div>
-
-            <div class="chips" aria-label="Supported services">
-                <span class="chip">MyAnimeList</span>
-                <span class="chip">AniList</span>
-                <span class="chip">Stremio</span>
-            </div>
-        </header>
-
+    <main class="shell">
         <section class="hero" aria-labelledby="page-title">
-            <div class="hero-inner">
-                <div class="hero-head">
-                    <div>
-                        <span class="eyebrow">Manual Sync Panel</span>
-                        <h2 class="hero-title" id="page-title">Where are you in this anime?</h2>
-                        <p class="hero-copy">
-                            Pick a status, set progress, rate it, and sync. AniSync will update only the trackers selected below.
-                        </p>
+            <div class="topbar">
+                <div class="brand">
+                    <div class="brand-mark" aria-hidden="true">AS</div>
+                    <div class="brand-copy">
+                        <strong>AniSync</strong>
+                        <span>Stremio control panel</span>
                     </div>
+                </div>
+                <div class="chips" aria-label="Supported services">
+                    <span class="chip">MyAnimeList</span>
+                    <span class="chip">AniList</span>
+                    <span class="chip">Stremio</span>
+                </div>
+            </div>
 
-                    <aside class="target-card" aria-label="Current anime metadata">
-                        <div class="target-label">
-                            <span>Current target</span>
-                            <span>{safe_type}</span>
-                        </div>
-                        <div class="target-id">{safe_meta_id}</div>
-                        <div class="target-meta">
-                            <span class="mini">Progress: {default_progress}</span>
-                            <span class="mini">Type: {safe_type}</span>
-                        </div>
-                    </aside>
+            <div class="hero-grid">
+                <div>
+                    <p class="eyebrow">Manual sync panel</p>
+                    <h1 id="page-title" class="headline"><span>Update anime</span><span>in one move.</span></h1>
+                    <p class="lede">Set status, episode progress, and score from the same page Stremio opens. Only selected trackers are updated.</p>
                 </div>
 
-                <div class="flow" aria-label="Sync path">
-                    <div class="flow-node">Stremio</div>
-                    <div class="flow-arrow" aria-hidden="true"></div>
-                    <div class="flow-node">AniSync</div>
-                    <div class="flow-arrow" aria-hidden="true"></div>
-                    <div class="flow-node">MAL / AniList</div>
-                </div>
+                <aside class="target-card" aria-label="Current target">
+                    <p class="eyebrow">Current target</p>
+                    <p class="target-id">__SAFE_META_ID__</p>
+                    <div class="target-meta">
+                        <span class="meta-pill">Type · __SAFE_TYPE__</span>
+                        <span class="meta-pill">Progress · <span data-progress-mirror>__DEFAULT_PROGRESS__</span></span>
+                    </div>
+                    <div class="flow" aria-label="Sync flow">
+                        <div class="flow-step"><small>01</small><strong>Stremio</strong></div>
+                        <div class="flow-step"><small>02</small><strong>AniSync</strong></div>
+                        <div class="flow-step"><small>03</small><strong>MAL / AniList</strong></div>
+                    </div>
+                </aside>
+            </div>
+        </section>
 
-                <form id="manageForm" method="post" action="{form_action}">
-                    <input type="hidden" name="meta_id" value="{safe_meta_id}">
-                    <input type="hidden" name="content_type" value="{safe_type}">
+        <section class="panel" aria-label="Update form">
+            <div class="panel-inner">
+                <form class="sync-form" id="sync-form" method="post" action="__FORM_ACTION__">
+                    <input type="hidden" name="meta_id" value="__SAFE_META_ID__" />
 
-                    <div class="form-grid">
-                        <section class="panel" aria-labelledby="providers-title">
-                            <div class="panel-head">
+                    <section class="section section--providers">
+                        <div class="section-head">
+                            <div>
+                                <div class="section-kicker">Step 1</div>
+                                <h2>Choose tracker</h2>
+                                <p>Unavailable trackers are locked automatically.</p>
+                            </div>
+                            <div class="step-number">1</div>
+                        </div>
+
+                        <div class="provider-grid">
+                            <label class="provider-card __MAL_STATE__" for="provider_mal">
+                                <input id="provider_mal" type="checkbox" name="provider_mal" value="1" __MAL_CHECKED__ __MAL_DISABLED__ />
+                                <span class="provider-check">M</span>
                                 <div>
-                                    <p class="step">1. Choose tracker</p>
-                                    <h3 class="panel-title" id="providers-title">Send to services</h3>
+                                    <strong>MyAnimeList</strong>
+                                    <small>__MAL_NOTE__</small>
                                 </div>
-                                <p class="panel-hint">Unavailable trackers are shown inactive.</p>
-                            </div>
+                            </label>
 
-                            <div class="providers">
-                                <label class="provider-card {mal_state}">
-                                    <input class="provider-input" type="checkbox" name="provider_mal" value="1" {mal_checked} {mal_disabled}>
-                                    <span class="provider-shell">
-                                        <span>
-                                            <span class="provider-name">MyAnimeList</span>
-                                            <span class="provider-note">{mal_note}</span>
-                                        </span>
-                                        <span class="provider-toggle" aria-hidden="true"></span>
-                                    </span>
-                                </label>
-
-                                <label class="provider-card {anilist_state}">
-                                    <input class="provider-input" type="checkbox" name="provider_anilist" value="1" {anilist_checked} {anilist_disabled}>
-                                    <span class="provider-shell">
-                                        <span>
-                                            <span class="provider-name">AniList</span>
-                                            <span class="provider-note">{anilist_note}</span>
-                                        </span>
-                                        <span class="provider-toggle" aria-hidden="true"></span>
-                                    </span>
-                                </label>
-                            </div>
-                        </section>
-
-                        <section class="panel" aria-labelledby="status-title">
-                            <div class="panel-head">
+                            <label class="provider-card __ANILIST_STATE__" for="provider_anilist">
+                                <input id="provider_anilist" type="checkbox" name="provider_anilist" value="1" __ANILIST_CHECKED__ __ANILIST_DISABLED__ />
+                                <span class="provider-check">A</span>
                                 <div>
-                                    <p class="step">2. Set status</p>
-                                    <h3 class="panel-title" id="status-title">Anime state</h3>
+                                    <strong>AniList</strong>
+                                    <small>__ANILIST_NOTE__</small>
                                 </div>
-                                <p class="panel-hint">Choose exactly one list status.</p>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="section section--status">
+                        <div class="section-head">
+                            <div>
+                                <div class="section-kicker">Step 2</div>
+                                <h2>Set anime state</h2>
+                                <p>Pick exactly one status for your list entry.</p>
+                            </div>
+                            <div class="step-number">2</div>
+                        </div>
+
+                        <div class="status-grid" role="radiogroup" aria-label="Status">
+__STATUS_CARDS__
+                        </div>
+                    </section>
+
+                    <section class="section section--controls">
+                        <div class="section-head">
+                            <div>
+                                <div class="section-kicker">Step 3</div>
+                                <h2>Progress and score</h2>
+                                <p>Use episode progress from Stremio or adjust it manually.</p>
+                            </div>
+                            <div class="step-number">3</div>
+                        </div>
+
+                        <div class="control-grid">
+                            <div>
+                                <label class="field-label" for="progress">
+                                    Episode count
+                                    <span class="progress-readout"><span data-progress-mirror>__DEFAULT_PROGRESS__</span> eps</span>
+                                </label>
+                                <div class="stepper">
+                                    <button type="button" data-progress-step="-1" aria-label="Decrease progress">−</button>
+                                    <input id="progress" name="progress" type="number" min="0" inputmode="numeric" value="__DEFAULT_PROGRESS__" />
+                                    <button type="button" data-progress-step="1" aria-label="Increase progress">+</button>
+                                </div>
                             </div>
 
-                            <fieldset class="status-grid">
-                                <legend class="visually-hidden">Status</legend>
-                                {status_cards}
-                            </fieldset>
-                        </section>
-
-                        <section class="control-row" aria-label="Progress and score controls">
-                            <div class="panel">
-                                <div class="panel-head">
-                                    <div>
-                                        <p class="step">Progress</p>
-                                        <h3 class="panel-title">Episode count</h3>
-                                    </div>
+                            <div>
+                                <div class="field-label">
+                                    Your score
+                                    <span class="score-readout"><span id="score-readout">—</span> / 10</span>
                                 </div>
-
-                                <label class="visually-hidden" for="progressInput">Progress</label>
-                                <div class="progress-box">
-                                    <button class="round-btn" type="button" id="minusBtn" aria-label="Decrease progress">−</button>
-                                    <input class="progress-num" id="progressInput" type="number" name="progress" min="0" inputmode="numeric" value="{default_progress}">
-                                    <button class="round-btn" type="button" id="plusBtn" aria-label="Increase progress">+</button>
+                                <div class="score-grid" role="radiogroup" aria-label="Score">
+__SCORE_CONTROLS__
                                 </div>
                             </div>
+                        </div>
+                    </section>
 
-                            <div class="panel">
-                                <div class="score-wrap">
-                                    <div class="score-top">
-                                        <div>
-                                            <p class="step">Rating</p>
-                                            <h3 class="panel-title">Your score</h3>
-                                        </div>
-                                        <div class="score-display">
-                                            <span id="scoreValue">—</span> <small>/ 10</small>
-                                        </div>
-                                    </div>
-
-                                    <fieldset class="score-list">
-                                        <legend class="visually-hidden">Score</legend>
-                                        {score_controls}
-                                    </fieldset>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section>
-                            <div class="submit-panel">
-                                <div class="submit-copy">
-                                    <strong>3. Sync</strong>
-                                    <span>Updates selected trackers only.</span>
-                                </div>
-                                <button class="sync-button" id="syncButton" type="submit">Sync Progress</button>
-                            </div>
-
-                            <div class="result" id="result" role="status" aria-live="polite" hidden></div>
-
-                            <details>
-                                <summary>Technical details</summary>
-                                <dl class="details-grid">
-                                    <div>
-                                        <dt>ID</dt>
-                                        <dd>{safe_meta_id}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Type</dt>
-                                        <dd>{safe_type}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Kitsu</dt>
-                                        <dd>{safe_kitsu_id}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>MAL</dt>
-                                        <dd>{safe_mal_id}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>AniList</dt>
-                                        <dd>{safe_anilist_id}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Simkl</dt>
-                                        <dd>{safe_simkl_id}</dd>
-                                    </div>
-                                </dl>
-                            </details>
-                        </section>
+                    <div class="submit-zone">
+                        <button class="submit-button" id="submit-button" type="submit">Sync Progress</button>
+                        <div class="status-message" id="status-message" role="status" aria-live="polite"></div>
                     </div>
                 </form>
             </div>
+
+            <details>
+                <summary>Technical details</summary>
+                <dl class="details-grid">
+                    <div class="detail-row"><dt>ID</dt><dd>__SAFE_META_ID__</dd></div>
+                    <div class="detail-row"><dt>Type</dt><dd>__SAFE_TYPE__</dd></div>
+                    <div class="detail-row"><dt>Kitsu</dt><dd>__KITSU_ID__</dd></div>
+                    <div class="detail-row"><dt>MAL</dt><dd>__MAL_ID__</dd></div>
+                    <div class="detail-row"><dt>AniList</dt><dd>__ANILIST_ID__</dd></div>
+                    <div class="detail-row"><dt>Simkl</dt><dd>__SIMKL_ID__</dd></div>
+                </dl>
+            </details>
         </section>
     </main>
 
     <script>
-        const form = document.getElementById("manageForm");
-        const result = document.getElementById("result");
-        const syncButton = document.getElementById("syncButton");
-        const progressInput = document.getElementById("progressInput");
-        const minusBtn = document.getElementById("minusBtn");
-        const plusBtn = document.getElementById("plusBtn");
-        const scoreValue = document.getElementById("scoreValue");
+        (() => {
+            const form = document.getElementById('sync-form');
+            const progress = document.getElementById('progress');
+            const progressMirrors = document.querySelectorAll('[data-progress-mirror]');
+            const scoreReadout = document.getElementById('score-readout');
+            const submitButton = document.getElementById('submit-button');
+            const statusMessage = document.getElementById('status-message');
 
-        function clampProgress() {{
-            const parsed = Number.parseInt(progressInput.value || "0", 10);
-            progressInput.value = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-        }}
+            const clampProgress = () => {
+                const parsed = Number.parseInt(progress.value || '0', 10);
+                const next = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+                progress.value = String(next);
+                progressMirrors.forEach((node) => { node.textContent = String(next); });
+            };
 
-        function pulseProgress() {{
-            progressInput.classList.remove("pulse");
-            void progressInput.offsetWidth;
-            progressInput.classList.add("pulse");
-        }}
+            document.querySelectorAll('[data-progress-step]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const step = Number.parseInt(button.dataset.progressStep || '0', 10);
+                    const current = Number.parseInt(progress.value || '0', 10) || 0;
+                    progress.value = String(Math.max(0, current + step));
+                    clampProgress();
+                });
+            });
 
-        minusBtn.addEventListener("click", () => {{
+            progress.addEventListener('input', clampProgress);
             clampProgress();
-            progressInput.value = Math.max(0, Number(progressInput.value) - 1);
-            pulseProgress();
-        }});
 
-        plusBtn.addEventListener("click", () => {{
-            clampProgress();
-            progressInput.value = Number(progressInput.value) + 1;
-            pulseProgress();
-        }});
+            document.querySelectorAll('input[name="score"]').forEach((input) => {
+                input.addEventListener('change', () => {
+                    scoreReadout.textContent = input.value || '—';
+                });
+            });
 
-        progressInput.addEventListener("blur", clampProgress);
+            const showMessage = (kind, text) => {
+                statusMessage.textContent = text;
+                statusMessage.className = `status-message is-visible is-${kind}`;
+            };
 
-        function syncScoreDisplay() {{
-            const checked = document.querySelector('input[name="score"]:checked');
-            const score = checked ? checked.value : "";
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                clampProgress();
 
-            scoreValue.textContent = score === "" ? "—" : score;
+                submitButton.disabled = true;
+                submitButton.textContent = 'Syncing…';
+                showMessage('success', 'Sending update to selected trackers…');
 
-            document.querySelectorAll(".score-choice").forEach((choice) => {{
-                const input = choice.querySelector("input");
-                const active = score !== "" && input.value !== "" && Number(input.value) <= Number(score);
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'Accept': 'application/json' },
+                    });
 
-                choice.classList.toggle("is-filled", active);
-                choice.classList.toggle("is-selected", input.checked);
-            }});
-        }}
-
-        document.querySelectorAll('input[name="score"]').forEach((input) => {{
-            input.addEventListener("change", syncScoreDisplay);
-        }});
-
-        syncScoreDisplay();
-
-        form.addEventListener("submit", async (event) => {{
-            if (!window.fetch) {{
-                return;
-            }}
-
-            event.preventDefault();
-
-            if (!form.reportValidity()) {{
-                return;
-            }}
-
-            result.hidden = false;
-            result.className = "result";
-            result.textContent = "Syncing selected trackers…";
-
-            const originalLabel = syncButton.textContent;
-            syncButton.disabled = true;
-            syncButton.textContent = "Syncing…";
-
-            try {{
-                const response = await fetch(form.action, {{
-                    method: "POST",
-                    body: new FormData(form),
-                    headers: {{
-                        "Accept": "application/json"
-                    }}
-                }});
-
-                const data = await response.json().catch(() => ({{}}));
-
-                result.className = response.ok ? "result is-success" : "result is-error";
-                result.textContent = data.message || (response.ok ? "Progress synced." : "Update failed.");
-            }} catch (error) {{
-                result.className = "result is-error";
-                result.textContent = "Update failed. Check your connection and try again.";
-            }} finally {{
-                syncButton.disabled = false;
-                syncButton.textContent = originalLabel;
-            }}
-        }});
+                    const payload = await response.json().catch(() => ({}));
+                    const message = payload.message || (response.ok ? 'Updated successfully.' : 'Update failed.');
+                    showMessage(response.ok ? 'success' : 'error', message);
+                } catch (error) {
+                    showMessage('error', 'Network error. Open AniSync again and retry.');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Sync Progress';
+                }
+            });
+        })();
     </script>
 </body>
-</html>
-"""
+</html>"""
+
+    return (
+        page
+        .replace('__FORM_ACTION__', safe_form_action)
+        .replace('__SAFE_META_ID__', safe_meta_id)
+        .replace('__SAFE_TYPE__', safe_type)
+        .replace('__DEFAULT_PROGRESS__', safe_default_progress)
+        .replace('__KITSU_ID__', safe_kitsu_id)
+        .replace('__MAL_ID__', safe_mal_id)
+        .replace('__ANILIST_ID__', safe_anilist_id)
+        .replace('__SIMKL_ID__', safe_simkl_id)
+        .replace('__MAL_NOTE__', mal_note)
+        .replace('__ANILIST_NOTE__', anilist_note)
+        .replace('__MAL_CHECKED__', mal_checked)
+        .replace('__ANILIST_CHECKED__', anilist_checked)
+        .replace('__MAL_DISABLED__', mal_disabled)
+        .replace('__ANILIST_DISABLED__', anilist_disabled)
+        .replace('__MAL_STATE__', mal_state)
+        .replace('__ANILIST_STATE__', anilist_state)
+        .replace('__STATUS_CARDS__', status_cards)
+        .replace('__SCORE_CONTROLS__', score_controls)
+    )
+
 
 @manage_bp.route("/<user_id>/manage/update", methods=["POST"])
 @rate_limit(limit=30, period_seconds=60)
